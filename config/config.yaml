@@ -1,0 +1,15 @@
+app:
+  name: "Research Mentor AI"
+  environment: "development"
+
+search:
+  similarity_threshold: 0.50      # Minimum score match to consider a paper a "cache hit"
+  default_max_results: 15         # Number of papers to retrieve
+
+api:
+  arxiv:
+    base_url: "http://export.arxiv.org/api/query"
+    rate_limit_seconds: 3         # Wait time to respect arXiv's fair-use policy
+
+embedding:
+  model_name: "all-MiniLM-L6-v2"  # Free, lightweight, local 384-dimension vector model
