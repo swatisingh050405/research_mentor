@@ -1,0 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700;800&family=Inter:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+@theme {
+    --color-brand-primary: #8A22F9;
+    --color-brand-accent: #5B37F7;
+    --color-brand-secondary: #A855F7;
+    --color-brand-soft: #D6BCFA;
+    --color-brand-deep: #5A1FD4;
+
+    --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    --font-interface: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Base resets taaki utility classes perfectly override ho sakein */
+html,
+body,
+#root {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+    font-family: var(--font-interface);
+}
