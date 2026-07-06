@@ -52,12 +52,7 @@ class PaperEmbedder:
             normalize_embeddings=True
         )
 
-    def find_similar_papers(
-    self,
-    collection,
-    title: str,
-    abstract: str,
-    top_k: int = 6
+    def find_similar_papers(self,collection,title: str,abstract: str,top_k: int = 6
 ):
         """
         Finds semantically similar papers from ChromaDB.

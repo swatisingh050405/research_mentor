@@ -1,4 +1,4 @@
-# src/ml_pipeline/search_papers.py
+
 import chromadb
 from src.common.logger import logger
 from src.common.config_loader import CHROMA_DB_PATH
@@ -9,7 +9,7 @@ class PaperSearcher:
         """Initializes the Read-Only Vector Query Engine interface."""
         self.collection_name = "academic_papers"
         
-        # Connect to the exact same persistent Chroma database [cite: 340]
+        logger.info(f"Connecting to persistent ChromaDB at: {CHROMA_DB_PATH}")
         self.chroma_client = chromadb.PersistentClient(path=str(CHROMA_DB_PATH))
         self.embedder = PaperEmbedder()
         self.collection = self.chroma_client.get_collection(name=self.collection_name)
@@ -21,8 +21,7 @@ class PaperSearcher:
         """
         logger.info(f"Processing query vector matching lookup for text: '{query_text}'")
         
-        # 🌟 FIXED THIS LINE: Now calling the unified encode_text master function!
-        # Hum direct user query string ko universal encoder mein pass kar rahe hain
+        # Generate query vector
         query_vector = self.embedder.encode_text(query_text)
         
         results = self.collection.query(

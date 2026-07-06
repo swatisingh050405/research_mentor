@@ -9,9 +9,7 @@ from src.common.logger import logger
 from src.common.config_loader import CONFIG
 
 
-# ==========================================================
 # Base Client
-# ==========================================================
 
 class BaseSearchClient:
     """Common helper utilities shared by all academic search clients."""
@@ -37,10 +35,8 @@ class BaseSearchClient:
         }
 
 
-# ==========================================================
-# Semantic Scholar Client
-# ==========================================================
 
+# Semantic Scholar Client
 class SemanticScholarClient(BaseSearchClient):
 
     def __init__(self):
@@ -155,10 +151,8 @@ class SemanticScholarClient(BaseSearchClient):
         return papers
 
 
-# ==========================================================
-# arXiv Client
-# ==========================================================
 
+# arXiv Client
 class ArxivClient(BaseSearchClient):
 
     def __init__(self):
@@ -300,10 +294,8 @@ class ArxivClient(BaseSearchClient):
 
         return papers
 
-
-# ==========================================================
 # arXiv Client
-# ==========================================================
+
 
 class ArxivClient(BaseSearchClient):
     """

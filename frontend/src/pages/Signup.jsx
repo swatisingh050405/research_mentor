@@ -174,7 +174,7 @@ export default function Signup() {
                   Deploying...
                 </>
               ) : (
-                "Deploy Terminal Cluster"
+                "Sign Up"
               )}
             </button>
           </form>

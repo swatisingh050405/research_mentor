@@ -16,7 +16,7 @@ class PaperAnalyzer:
             logger.error("Missing Gemini API credential! Check your local secret environment keys.")
             raise ValueError("Gemini API Key validation check failed.")
 
-        # 🌟 NEW SDK SYNTAX: Direct client initialization
+        
         self.client = genai.Client(api_key=self.api_key)
         logger.info(f"Modernized GenAI engine synchronized target: '{self.model_name}'")
 
@@ -34,7 +34,7 @@ class PaperAnalyzer:
         )
 
         try:
-            #  NEW SDK CALL: Enforcing structured JSON extraction schema output
+            
             response = self.client.models.generate_content(
             model=self.model_name,
             contents=user_prompt,
@@ -61,9 +61,6 @@ class PaperAnalyzer:
             "search_query": user_query,
             "used_gemini": False
         }
-
-
-    
 
     def _generate_json_response(
         self,
@@ -121,11 +118,7 @@ class PaperAnalyzer:
 
                     raise
 
-    def analyze_paper_context(
-    self,
-    title: str,
-    abstract: str
-) -> dict:
+    def analyze_paper_context(self,title: str,abstract: str) -> dict:
         """
         Generates summary, keywords and difficulty
         for a single research paper.
@@ -254,7 +247,6 @@ class PaperAnalyzer:
             "analysis": analysis
         }
 
-        
 
         except Exception as e:
 

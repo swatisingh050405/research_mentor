@@ -2,11 +2,6 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
 
-/**
- * This is the dedicated Profile component (src/pages/Profile.jsx).
- * Features an absolute top-tier SaaS banner with an overlapping avatar layout (rotate micro-interaction)
- * and a complete light-purple themed historical track grid for recent searches.
- */
 export default function Profile() {
   const [userProfile, setUserProfile] = useState(null);
   const [savedCount, setSavedCount] = useState(0);
@@ -30,25 +25,21 @@ export default function Profile() {
         tier: "Free",
       });
 
-      // Total Bookmarks
       const { count: bookmarkCount } = await supabase
         .from("bookmarks")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id);
 
-      // Total Searches
       const { count: historyCount } = await supabase
         .from("search_history")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id);
 
-      // Total Collections
       const { count: collectionCount } = await supabase
         .from("collections")
         .select("*", { count: "exact", head: true })
         .eq("user_id", user.id);
 
-      // Search History
       const { data: history } = await supabase
         .from("search_history")
         .select("*")
@@ -64,29 +55,13 @@ export default function Profile() {
   }, []);
 
   if (!userProfile) {
-    return (
-      <div className="p-10 text-center">
-        Loading...
-      </div>
-    );
+    return <div className="p-10 text-center">Loading...</div>;
   }
 
   const stats = [
-    {
-      label: "Papers Saved",
-      value: savedCount,
-      icon: "📄",
-    },
-    {
-      label: "Collections",
-      value: collectionsCount,
-      icon: "🗂️",
-    },
-    {
-      label: "Searches Run",
-      value: searchCount,
-      icon: "🔍",
-    },
+    { label: "Papers Saved", value: savedCount, icon: "📄" },
+    { label: "Collections", value: collectionsCount, icon: "🗂️" },
+    { label: "Searches Run", value: searchCount, icon: "🔍" },
   ];
 
   const handleClearHistory = async () => {
@@ -103,6 +78,7 @@ export default function Profile() {
 
     if (error) {
       console.error(error);
+      alert("Could not clear history: " + error.message);
       return;
     }
 
@@ -110,13 +86,25 @@ export default function Profile() {
     setSearchCount(0);
   };
 
+  const handleDeleteSingleSearch = async (id) => {
+    const { error } = await supabase
+      .from("search_history")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error(error);
+      return;
+    }
+
+    setRecentSearches((prev) => prev.filter((s) => s.id !== id));
+    setSearchCount((prev) => Math.max(0, prev - 1));
+  };
+
   return (
     <div className="w-full max-w-5xl mx-auto p-8 md:p-10 space-y-8 font-interface animate-in fade-in duration-500">
-
       {/* ─── PREMIUM PROFILE BANNER CARD ─── */}
       <div className="bg-white rounded-[32px] border border-purple-100/60 shadow-[0_15px_40px_rgba(123,47,247,0.06)] overflow-hidden">
-
-        {/* Dynamic Mesh Gradient Banner */}
         <div className="h-44 w-full relative overflow-hidden bg-linear-to-br from-[var(--color-brand-primary)] via-[#7B3FF2] to-[var(--color-brand-accent)]">
           <div className="absolute inset-0 opacity-[0.15] bg-[radial-gradient(circle_at_20%_20%,white,transparent_35%)]" />
           <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_80%_60%,white,transparent_40%)]" />
@@ -148,9 +136,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* Profile Content Block with Overlapping Avatar */}
         <div className="px-8 pb-8 relative">
-
           <div className="absolute -top-12 left-8 w-24 h-24 bg-linear-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] rounded-[1.75rem] rotate-3 flex items-center justify-center shadow-xl shadow-purple-300/40 border-[6px] border-white group transition-transform hover:rotate-0 duration-300">
             <span className="font-black text-3xl text-white font-display -rotate-3 group-hover:rotate-0 transition-transform">
               {userProfile.fullName
@@ -179,7 +165,8 @@ export default function Profile() {
             </div>
 
             <p className="text-sm text-slate-500 font-medium mt-3 flex items-center gap-2">
-              <span className="text-[var(--color-brand-accent)]">💼</span> {userProfile.role}
+              <span className="text-[var(--color-brand-accent)]">💼</span>{" "}
+              {userProfile.role}
             </p>
           </div>
 
@@ -208,7 +195,6 @@ export default function Profile() {
 
       {/* ─── RECENT SEARCHES HISTORY PANEL ─── */}
       <div className="bg-white rounded-[32px] border border-purple-100/60 shadow-[0_15px_40px_rgba(123,47,247,0.04)] p-8">
-
         <div className="flex justify-between items-end mb-6 border-b border-purple-50 pb-4">
           <div>
             <h2 className="text-lg font-black text-slate-900 tracking-tight font-display flex items-center gap-2">
@@ -252,19 +238,17 @@ export default function Profile() {
               </div>
 
               <div className="flex items-center gap-4 pl-14 md:pl-0">
-                <span className="text-xs font-bold text-[var(--color-brand-primary)] bg-white px-3 py-1 rounded-lg border border-purple-100 font-display whitespace-nowrap">
-                  Search
-                </span>
-                <button className="text-xs font-bold text-slate-400 cursor-default">
-                  Recent
+                <button
+                  onClick={() => handleDeleteSingleSearch(search.id)}
+                  className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
+                >
+                  Remove
                 </button>
               </div>
             </div>
           ))}
         </div>
-
       </div>
-
     </div>
   );
 }

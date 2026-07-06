@@ -9,7 +9,6 @@ from src.ml_pipeline.llm_analyzer import PaperAnalyzer
 
 import chromadb
 
-
 class ResearchPlatformOrchestrator:
     def __init__(self):
         """Initializes all sub-modules inside the central backend orchestrator engine."""

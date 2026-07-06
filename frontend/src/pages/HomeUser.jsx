@@ -75,13 +75,25 @@ export default function HomeUser() {
       const data = await response.json();
 
       if (user) {
-        await supabase.from("search_history").insert([
+        const finalQuery = `${topic} ${description}`.trim();
+
+        const { data: lastSearch } = await supabase
+          .from("search_history")
+          .select("query")
+          .eq("user_id", user.id)
+          .order("search_date", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!lastSearch || lastSearch.query !== finalQuery) {
+          await supabase.from("search_history").insert([
           {
             user_id: user.id,
             query: finalQuery,
           },
         ]);
       }
+    }
 
       setPapers(data.papers || []);
     } catch (error) {
