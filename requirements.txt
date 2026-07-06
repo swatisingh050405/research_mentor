@@ -5,5 +5,4 @@ sentence-transformers
 chromadb
 python-dotenv
 feedparser
-langchain
-langchain-groq
+google-genai

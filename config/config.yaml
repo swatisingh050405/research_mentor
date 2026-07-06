@@ -11,5 +11,8 @@ api:
     base_url: "http://export.arxiv.org/api/query"
     rate_limit_seconds: 3         # Wait time to respect arXiv's fair-use policy
 
+  gemini:
+      model_name: "gemini-2.5-flash"             # Placeholder for Gemini API key, dynamically loaded from .env
+
 embedding:
   model_name: "all-MiniLM-L6-v2"  # Free, lightweight, local 384-dimension vector model

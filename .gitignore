@@ -219,3 +219,28 @@ __marimo__/
 
 #data
 data/*
+
+# ⚛️ React/Node Node Modules Omissions
+# ==========================================
+# Frontend dependencies (NPM dynamically reinstalls these via package.json)
+frontend/node_modules/
+package-lock.json
+package.json
+node_modules/
+
+# Production build artifacts
+frontend/dist/
+frontend/build/
+
+# IDE and Editor configs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# OS generated logs/files
+.DS_Store
+Thumbs.db
