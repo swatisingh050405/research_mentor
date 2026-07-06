@@ -1,66 +1,76 @@
-import json
 from sentence_transformers import SentenceTransformer
 from src.common.logger import logger
-from src.common.config_loader import CONFIG, EXTRACTED_PAPERS_JSON
 
 class PaperEmbedder:
     def __init__(self):
-        """Initializes the local open-source embedding engine framework."""
-        # Load the model name from centralized configuration
-        self.model_name = CONFIG["embedding"]["model_name"]
+        """Initializes the local SentenceTransformer embedding model."""
+        # Using the standard local semantic matching model
+        self.model_name = "all-MiniLM-L6-v2"
         logger.info(f"Loading Local SentenceTransformer engine: '{self.model_name}'")
-        
-        self.model = SentenceTransformer(self.model_name)
-        logger.info("Embedding engine model successfully loaded onto active workspace.")
-
-    def load_local_extracted_dataset(self) -> list:
-        """Reads the persistent diverse offline JSON dataset from the data folder."""
-        if not EXTRACTED_PAPERS_JSON.exists():
-            logger.error(f"Extracted dataset database missing at: {EXTRACTED_PAPERS_JSON}")
-            return []
-        
-        with open(EXTRACTED_PAPERS_JSON, "r", encoding="utf-8") as f:
-            papers = json.load(f)
-        logger.info(f"Successfully read {len(papers)} items from offline dataset storage.")
-        return papers
+        try:
+            self.model = SentenceTransformer(self.model_name)
+            logger.info("Embedding engine model successfully loaded onto active workspace.")
+        except Exception as e:
+            logger.error(f"Failed to load embedding transformer model: {e}")
+            raise e
 
     def construct_embedding_text(self, title: str, abstract: str) -> str:
-        """Merges title and abstract context strings into one rich token group for better semantic indexing."""
-        return f"Title: {title}. Abstract: {abstract}"
-
-    def encode_text(self, text_or_list) -> list:
         """
-        Universal Encoder: Takes a single string OR a list of strings,
+        Standardizes the long-form text structure for database vector ingestion.
         """
-        # Model.encode natively handles both single strings and lists!
-        embeddings = self.model.encode(text_or_list, show_progress_bar=False)
-        return embeddings.tolist()
+        return f"{title}\n\n{abstract}"
 
-    # Data transformation pipeline wrapper for our DB loader
-    def process_and_vectorize_batch(self, papers: list) -> tuple:
-        """Processes raw paper dict lists and maps them using our universal encoder."""
-        if not papers:
-            return [], []
-        
-        # 1. Sirf text structure sajane ka kaam kiya
-        combined_texts = [self.construct_embedding_text(p["title"], p["abstract"]) for p in papers]
-        
-        # 2. Universal encoder machine ko poori list hand-over kar di
-        logger.info(f"Running zero-cost local tensor encoding on {len(combined_texts)} items...")
-        vector_matrix = self.encode_text(combined_texts)
-        
-        return vector_matrix, combined_texts
+    def construct_query_text(self, query: str) -> str:
+        """
+        Standardizes the short user query to mimic the structural weight of the ingestion text.
+        """
+        return f"{query}".strip()
 
+    def encode_text(self, text: str) -> list:
+        """
+        Generates a dense vector embedding array from raw string data.
+        """
+        if not text:
+            return None
+        return self.model.encode(
+            text,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        )
 
-if __name__ == "__main__":
-    embedder = PaperEmbedder()
-    
-    # Load the offline dataset for embedding processing
-    offline_dataset = embedder.load_local_extracted_dataset()
-    
-    if offline_dataset:
-        # Process a small sample for quick validation
-        vectors, raw_texts = embedder.process_and_vectorize(offline_dataset[:3])
-        print("\n--- MATRIX EMBEDDING STRUCTURAL CHECK ---")
-        print(f"Sample Document Vector Length: {len(vectors[0])} values")
-        print(f"Sample Processed Text Preview: {raw_texts[0][:120]}...")
+    def encode_batch(
+        self,
+        texts
+    ) -> list:
+        """
+        Generates a dense vector embedding array from raw string data.
+        """
+
+        return self.model.encode(
+            texts,
+            convert_to_numpy=True,
+            normalize_embeddings=True
+        )
+
+    def find_similar_papers(
+    self,
+    collection,
+    title: str,
+    abstract: str,
+    top_k: int = 6
+):
+        """
+        Finds semantically similar papers from ChromaDB.
+        """
+
+        query_text = self.construct_embedding_text(title, abstract)
+
+        query_embedding = self.encode_text(query_text)
+
+        results = collection.query(
+            query_embeddings=[query_embedding],
+            n_results=top_k + 1,
+            include=["metadatas", "distances"]
+        )
+
+        return results

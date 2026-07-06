@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from src.common.config_loader import CONFIG
 from src.backend.routes import router
@@ -37,6 +37,8 @@ async def health_check():
         "environment": CONFIG.get("app", {}).get("environment", "development"),
         "api_version": "1.0.0"
     }
+
+   
 
 if __name__ == "__main__":
     # Uvicorn serves the app at http://127.0.0.1:8000

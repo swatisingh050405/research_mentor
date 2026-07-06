@@ -17,8 +17,18 @@ except Exception as e:
 # 3. Dedicated GET endpoint for Semantic Search & AI Summary
 @router.get("/search")
 async def semantic_paper_search(
-    query: str = Query(..., description="The research topic or paragraph description entered by the user")
+    query: str = Query(
+    ...,
+    min_length=2,
+    max_length=300
+),
+   offset: int = Query(
+    default=0,
+    ge=0,
+    description="Pagination offset"
+)
 ):
+
     """
     Core Search API:
     - Automatically checks ChromaDB for a semantic match (Cache Hit).
@@ -31,23 +41,55 @@ async def semantic_paper_search(
     try:
         logger.info(f"API Server received search request for query: '{query}'")
         
-        # FIX SYNC: Passing query text into your exact signature parameter 'user_query'
-        # Your run_pipeline returns data internally, but prints output. 
-        # For API response uniformity, we capture it cleanly.
-        results = orchestrator.run_pipeline(user_query=query)
+        # 4. Pipeline Execution
+        results = orchestrator.run_pipeline(user_query=query, offset=offset)
+        logger.info(f"Received Query : {query}")
         
-        # Safety fallback logic: If your pipeline returns None, return empty structure instead of crash
+        # 5. Response Formatting
         if results is None:
+
+            logger.warning(
+                "Pipeline returned None. Sending empty response."
+            )
+
             results = []
             
         return {
             "query": query,
+            "offset": offset,
+            "count": len(results),
             "papers": results
         }
-        
     except Exception as e:
-        logger.error(f"Internal breakdown during API search execution for '{query}': {e}")
+        logger.exception(
+        f"Pipeline execution failed for query: {query}"
+    )
         raise HTTPException(
             status_code=500, 
             detail=f"An error occurred while processing the research papers: {str(e)}"
+        )
+
+@router.get("/paper/{paper_id}")
+async def get_paper_detail(paper_id: str):
+    """
+    Returns complete paper information along with similar paper recommendations.
+    """
+
+    try:
+        result = orchestrator.get_paper_details(paper_id)
+
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail="Paper not found"
+            )
+
+        return result
+
+    except Exception as e:
+        logger.error(f"Paper detail API failed: {e}")
+
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to retrieve paper details."
         )

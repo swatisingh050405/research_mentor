@@ -1,6 +1,7 @@
-# src/common/config_loader.py
+import os
 import yaml
 from pathlib import Path
+from dotenv import load_dotenv
 from src.common.logger import logger
 
 def get_project_root() -> Path:
@@ -16,10 +17,15 @@ LOGS_DIR = ROOT_DIR / "logs"
 CHROMA_DB_PATH = DATA_DIR / "chroma_db"
 EXTRACTED_PAPERS_JSON = DATA_DIR / "extracted_papers.json"
 
-# Ensure crucial runtime directories exist right away
+# Ensure directories exist
 DATA_DIR.mkdir(exist_ok=True)
 LOGS_DIR.mkdir(exist_ok=True)
 
+# Load environment variables from .env if present
+ENV_PATH = ROOT_DIR / ".env"
+if ENV_PATH.exists():
+    load_dotenv(dotenv_path=ENV_PATH)
+    logger.info("Environment variables successfully loaded from .env file.")
 
 def load_yaml_config(file_name: str) -> dict:
     """Utility to safely load configuration YAML files."""
@@ -38,3 +44,13 @@ def load_yaml_config(file_name: str) -> dict:
 # Instantiate global settings singletons
 CONFIG = load_yaml_config("config.yaml")
 PROMPTS = load_yaml_config("prompts.yaml")
+
+# Ensure the Gemini API key is present in the environment and bridge it to the config
+
+if "api" not in CONFIG:
+    CONFIG["api"] = {}
+if "gemini" not in CONFIG["api"]:
+    CONFIG["api"]["gemini"] = {}
+    
+# Ensure the Gemini API key is present in the environment
+CONFIG["api"]["gemini"]["api_key"] = os.getenv("GEMINI_API_KEY", "")
