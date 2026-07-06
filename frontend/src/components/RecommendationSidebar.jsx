@@ -1,38 +1,10 @@
-import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function RecommendationSidebar({ paper }) {
-  const [loading, setLoading] = useState(true);
-  const [recommendations, setRecommendations] = useState([]);
-
-  useEffect(() => {
-    if (!paper) return;
-
-    fetchRecommendations();
-  }, [paper]);
-
-  const fetchRecommendations = async () => {
-    setLoading(true);
-
-    // Dummy data for now
-    setTimeout(() => {
-      setRecommendations([
-        {
-          id: 1,
-          title: "Attention Is All You Need"
-        },
-        {
-          id: 2,
-          title: "BERT: Pre-training of Deep Bidirectional Transformers"
-        },
-        {
-          id: 3,
-          title: "RoBERTa: A Robustly Optimized BERT"
-        }
-      ]);
-
-      setLoading(false);
-    }, 800);
-  };
+export default function RecommendationSidebar({
+  recommendations = [],
+  loading = false,
+}) {
+  const navigate = useNavigate();
 
   return (
     <div className="sticky top-24">
@@ -46,10 +18,22 @@ export default function RecommendationSidebar({ paper }) {
         {loading ? (
 
           <div className="space-y-3">
-            <div className="border rounded-xl p-4">Loading...</div>
-            <div className="border rounded-xl p-4">Loading...</div>
-            <div className="border rounded-xl p-4">Loading...</div>
+            {[1,2,3].map((i) => (
+              <div
+                key={i}
+                className="border border-purple-100 rounded-xl p-4 animate-pulse"
+              >
+                <div className="h-4 bg-purple-100 rounded w-3/4 mb-2"></div>
+                <div className="h-3 bg-purple-50 rounded w-1/2"></div>
+              </div>
+            ))}
           </div>
+
+        ) : recommendations.length === 0 ? (
+
+          <p className="text-sm text-slate-500">
+            No recommendations available.
+          </p>
 
         ) : (
 
@@ -59,12 +43,33 @@ export default function RecommendationSidebar({ paper }) {
 
               <div
                 key={item.id}
-                className="border border-purple-100 rounded-xl p-4 hover:bg-purple-50 cursor-pointer transition"
+                onClick={() =>
+                  navigate(`/paper/${item.id}`, {
+                    state: { paper: item },
+                  })
+                }
+                className="border border-purple-100 rounded-xl p-4 hover:bg-purple-50 cursor-pointer transition-all"
               >
 
-                <h4 className="font-bold text-sm">
+                <h4 className="font-bold text-sm text-slate-800 line-clamp-2">
                   {item.title}
                 </h4>
+
+                <p className="text-xs text-slate-500 mt-2">
+                  {item.authors || "Unknown Author"}
+                </p>
+
+                <div className="flex justify-between items-center mt-3">
+
+                  <span className="text-[10px] font-bold bg-purple-50 px-2 py-1 rounded-full text-purple-700">
+                    {item.year}
+                  </span>
+
+                  <span className="text-[10px] font-bold bg-purple-100 px-2 py-1 rounded-full text-purple-700">
+                    {item.difficulty_level}
+                  </span>
+
+                </div>
 
               </div>
 

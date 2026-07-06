@@ -40,7 +40,7 @@ export default function PaperCard({
         {/* Title */}
         <h3 className="text-lg md:text-xl font-black tracking-tight leading-snug">
           <a
-            href={paper.link || paper.url}
+            href={paper.url || paper.link}
             target="_blank"
             rel="noopener noreferrer"
             className="text-slate-900 hover:text-[var(--color-brand-primary)] hover:underline transition-colors"
@@ -65,6 +65,28 @@ export default function PaperCard({
             : "Unknown Author"}
         </p>
 
+        <div className="flex items-center gap-2 flex-wrap">
+
+  <span
+    className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full
+      ${
+        paper.difficulty_level === "Beginner"
+          ? "bg-green-50 text-green-700 border border-green-200"
+          : paper.difficulty_level === "Advanced"
+          ? "bg-red-50 text-red-700 border border-red-200"
+          : "bg-yellow-50 text-yellow-700 border border-yellow-200"
+      }
+    `}
+  >
+    {paper.difficulty_level || "Intermediate"}
+      </span>
+      <span className="text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full bg-purple-50 border border-purple-100 text-[var(--color-brand-primary)]">
+        {paper.source_type}
+      </span>
+
+    
+
+    </div>
         {/* Summary */}
         <div className="rounded-2xl border border-purple-100 bg-purple-50/40 p-5">
           <h4 className="text-xs font-black uppercase tracking-widest text-[var(--color-brand-primary)] mb-3">

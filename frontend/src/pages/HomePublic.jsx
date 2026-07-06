@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from 'framer-motion';
 import PaperCard from '../components/PaperCard';
+import SearchBar from '../components/SearchBar';
 
 
 export default function HomePublic() {
@@ -13,41 +14,100 @@ export default function HomePublic() {
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [papers, setPapers] = useState([]);
+  const [offset, setOffset] = useState(0);
+  const [query, setQuery] = useState("");
   const [errorMessage, setErrorMessage] = useState(null);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [searched, setSearched] = useState(false);
 
   const handlePublicSearch = async (e) => {
     e.preventDefault();
+
     if (!topic.trim()) return;
 
     setIsLoading(true);
     setErrorMessage(null);
+    setHasMore(true);
+    setSearched(true);
+    setPapers([]);
+
+    const finalQuery = `${topic} ${description}`.trim();
+
+    setQuery(finalQuery);
+    setOffset(0);
 
     try {
-  const queryParams = new URLSearchParams({
-    query: `${topic} ${description}`.trim()
-  });
+      const queryParams = new URLSearchParams({
+        query: finalQuery,
+        offset: 0
+      });
 
-  const response = await fetch(
-    `http://127.0.0.1:8000/api/search?${queryParams.toString()}`
-  );
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/search?${queryParams.toString()}`
+      );
 
-  if (!response.ok)
-    throw new Error(`Status Exception: ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`Status Exception: ${response.status}`);
+      }
 
-  const data = await response.json();
+      const data = await response.json();
 
-  console.log("API Response:", data);
+      console.log(data);
 
-  setPapers(data.papers || []);
-}
-catch (error) {
-  console.error(error);
-  setErrorMessage("Local ML API Pipeline status offline. Verify terminal session.");
-}
-finally {
-  setIsLoading(false);
-}
+      setPapers(data.papers || []);
+    } catch (error) {
+      console.error(error);
+      setErrorMessage(
+        "Local ML API Pipeline status offline. Verify terminal session." 
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const nextOffset = offset + 5;
+
+      const queryParams = new URLSearchParams({
+        query: query,
+        offset: nextOffset
+      });
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/search?${queryParams.toString()}`
+      );
+
+      if (!response.ok) {
+        throw new Error(`Status Exception: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const newPapers = data.papers || [];
+
+    setPapers(prev => {
+    const ids = new Set(prev.map(p => p.id));
+
+    const filtered = newPapers.filter(
+        paper => !ids.has(paper.id)
+    );
+
+    return [...prev, ...filtered];
+});
+      setOffset(nextOffset);
+
+      if (newPapers.length < 5) {
+        setHasMore(false);
+      }
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FDFDFF] text-slate-800 font-interface relative overflow-x-hidden">
 
@@ -99,46 +159,46 @@ finally {
             <a href="#docs" className="hover:text-[var(--color-brand-primary)] transition-colors">Docs</a>
           </nav>
 
-                  <div className="flex items-center gap-3">
-          {user ? (
-            <>
-              <button
-                onClick={() => navigate("/workspace")}
-                className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
-              >
-                Workspace
-              </button>
+          <div className="flex items-center gap-3">
+            {user ? (
+              <>
+                <button
+                  onClick={() => navigate("/workspace")}
+                  className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                >
+                  Workspace
+                </button>
 
-              <button
-                onClick={() => navigate("/profile")}
-                className="w-10 h-10 rounded-full bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white font-bold"
-              >
-                {user.user_metadata?.full_name
-                  ?.split(" ")
-                  .map((n) => n[0])
-                  .join("")
-                  .slice(0, 2)
-                  .toUpperCase() || "R"}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                onClick={() => navigate("/login")}
-                className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
-              >
-                Sign In
-              </button>
+                <button
+                  onClick={() => navigate("/profile")}
+                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white font-bold"
+                >
+                  {user.user_metadata?.full_name
+                    ?.split(" ")
+                    .map((n) => n[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase() || "R"}
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  onClick={() => navigate("/login")}
+                  className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                >
+                  Sign In
+                </button>
 
-              <button
-                onClick={() => navigate("/signup")}
-                className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
-              >
-                Create Account
-              </button>
-            </>
-          )}
-        </div>
+                <button
+                  onClick={() => navigate("/signup")}
+                  className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                >
+                  Create Account
+                </button>
+              </>
+            )}
+          </div>
         </header>
 
         <div className="flex flex-col items-center justify-center text-center pt-24 pb-12 max-w-3xl mx-auto">
@@ -158,57 +218,21 @@ finally {
             Find, summarize, and organize academic research papers with production-grade AI insights, extraction, and real-time semantic tracking.
           </p>
 
-          <div className="w-full bg-white/90 backdrop-blur-md border border-purple-100 p-6 md:p-8 rounded-3xl shadow-[0_30px_70px_rgba(139,92,246,0.04)] text-left relative overflow-hidden group">
-            <div className="absolute top-0 left-0 right-0 h-1 bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)]" />
-            <form onSubmit={handlePublicSearch} className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Core Topic Focus
-                </label>
-                <input
-                  type="text"
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  placeholder="Enter your topic"
-                  className="w-full bg-purple-50/10 border border-purple-100/80 px-4 py-3.5 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[var(--color-brand-primary)] focus:ring-4 focus:ring-[var(--color-brand-primary)]/5 transition-all text-sm font-medium shadow-inner"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                  Search Context / Specific Parameters
-                </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe what you're looking for (optional)."
-                  rows={3}
-                  className="w-full bg-purple-50/10 border border-purple-100/80 px-4 py-3.5 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[var(--color-brand-primary)] focus:ring-4 focus:ring-[var(--color-brand-primary)]/5 transition-all text-sm font-medium resize-none leading-relaxed shadow-inner"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={isLoading || !topic.trim()}
-                className="w-full bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 text-white font-semibold py-3.5 rounded-xl transition-all shadow-md shadow-purple-600/10 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm cursor-pointer"
-              >
-                {isLoading ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                    </svg>
-                    Synthesizing Semantic Papers...
-                  </>
-                ) : (
-                  "Execute Academic Search"
-                )}
-              </button>
-            </form>
-          </div>
+          <SearchBar
+          topic={topic}
+          setTopic={setTopic}
+          description={description}
+          setDescription={setDescription}
+          onSubmit={handlePublicSearch}
+          isLoading={isLoading}
+          variant="public"
+        />
+
+          
         </div>
 
         {/* Results Rendering Stream */}
-        {(isLoading || papers.length > 0 || errorMessage) && (
+        {searched && (
           <section className="border-t border-purple-100/60 pt-10 pb-24">
             
             {errorMessage && (
@@ -240,15 +264,41 @@ finally {
                     onBookmarkToggle={() => alert("Please Sign In to save this paper!")}
                   />
                 ))}
+
+                {/* Load More button */}
+                {hasMore && (
+                  <div className="flex justify-center pt-4">
+                    <button
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="inline-flex items-center gap-2 bg-white border border-purple-100 text-[var(--color-brand-primary)] font-bold text-sm px-6 py-3 rounded-xl shadow-sm hover:border-[var(--color-brand-primary)]/40 hover:shadow-md hover:shadow-purple-600/10 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                    >
+                      {loadingMore ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4 text-[var(--color-brand-primary)]" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                          </svg>
+                          Loading More...
+                        </>
+                      ) : (
+                        "Load More Papers ↓"
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {papers.length >0 && !hasMore && (
+                  <p className="text-center text-xs text-slate-400 font-semibold pt-4">
+                    You've reached the end of the results.
+                  </p>
+                )}
               </div>
             )}
           </section>
         )}
-            
 
-            
       </div>
     </div>
   );
 }
- 

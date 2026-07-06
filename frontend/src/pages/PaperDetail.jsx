@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useEffect } from "react";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from "../context/AuthContext";
@@ -11,6 +12,8 @@ export default function PaperDetail() {
   const { user } = useAuth();
   const isAuthenticated = !!user;
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [recommendations, setRecommendations] = useState([]);
+  const [loadingRecommendations, setLoadingRecommendations] = useState(true);
 
   // Dynamic paper data — comes from PaperCard's navigate(`/paper/${id}`, { state: { paper } })
   const paper = location.state?.paper;
@@ -39,6 +42,34 @@ export default function PaperDetail() {
 
   const externalLink = paper.link || paper.url;
   const abstract = paper.abstract;
+  useEffect(() => {
+  async function loadRecommendations() {
+    if (!paper?.id) return;
+
+    try {
+      setLoadingRecommendations(true);
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/paper/${paper.id}`
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to load recommendations");
+      }
+
+      const data = await response.json();
+
+      setRecommendations(data.recommendations ?? []);
+    } catch (err) {
+      console.error(err);
+      setRecommendations([]);
+    } finally {
+      setLoadingRecommendations(false);
+    }
+  }
+
+  loadRecommendations();
+}, [paper?.id]);
 
   return (
     <div className="min-h-screen bg-[#FDFDFF] text-slate-800 font-interface relative overflow-x-hidden pb-16">
@@ -185,8 +216,8 @@ export default function PaperDetail() {
             onClick={() => setIsBookmarked(!isBookmarked)}
             className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all duration-300 shrink-0 cursor-pointer shadow-sm border active:scale-95 ${
               isBookmarked
-                ? 'bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] border-transparent text-white shadow-purple-600/20 scale-[1.02]'
-                : 'bg-white border-purple-100 text-[var(--color-brand-primary)] hover:bg-purple-50'
+                ? 'bg-linear-to-r from-brand-primary to-[var(--color-brand-accent)] border-transparent text-white shadow-purple-600/20 scale-[1.02]'
+                : 'bg-white border-purple-100 text-brand-primary hover:bg-purple-50'
             }`}
           >
             {isBookmarked ? "★ Saved to Library" : "🔖 Bookmark This Paper"}
@@ -196,7 +227,11 @@ export default function PaperDetail() {
       </div>
 
       {/* RIGHT COLUMN */}
-      <RecommendationSidebar paper={paper} />
+      <RecommendationSidebar
+    
+    recommendations={recommendations}
+    loading={loadingRecommendations}
+/>
 
     </div>
 
