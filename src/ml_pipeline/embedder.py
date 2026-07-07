@@ -1,71 +1,94 @@
-from sentence_transformers import SentenceTransformer
+import numpy as np
+from google import genai
 from src.common.logger import logger
+from src.common.config_loader import CONFIG
+
 
 class PaperEmbedder:
     def __init__(self):
-        """Initializes the local SentenceTransformer embedding model."""
-        # Using the standard local semantic matching model
-        self.model_name = "all-MiniLM-L6-v2"
-        logger.info(f"Loading Local SentenceTransformer engine: '{self.model_name}'")
-        try:
-            self.model = SentenceTransformer(self.model_name)
-            logger.info("Embedding engine model successfully loaded onto active workspace.")
-        except Exception as e:
-            logger.error(f"Failed to load embedding transformer model: {e}")
-            raise e
+        """Initializes the Gemini Embedding client."""
 
-    def construct_embedding_text(self, title: str, abstract: str) -> str:
-        """
-        Standardizes the long-form text structure for database vector ingestion.
-        """
+        api_key = CONFIG["api"]["gemini"]["api_key"]
+
+        self.client = genai.Client(api_key=api_key)
+
+        self.model_name = "gemini-embedding-001"
+
+        logger.info(
+            f"Gemini Embedding model initialized: {self.model_name}"
+        )
+
+    def construct_embedding_text(
+        self,
+        title: str,
+        abstract: str
+    ) -> str:
         return f"{title}\n\n{abstract}"
 
-    def construct_query_text(self, query: str) -> str:
-        """
-        Standardizes the short user query to mimic the structural weight of the ingestion text.
-        """
-        return f"{query}".strip()
+    def construct_query_text(
+        self,
+        query: str
+    ) -> str:
+        return query.strip()
 
-    def encode_text(self, text: str) -> list:
+    def encode_text(
+        self,
+        text: str
+    ):
         """
-        Generates a dense vector embedding array from raw string data.
+        Generates embedding for a single text.
         """
+
         if not text:
             return None
-        return self.model.encode(
-            text,
-            convert_to_numpy=True,
-            normalize_embeddings=True
+
+        response = self.client.models.embed_content(
+            model=self.model_name,
+            contents=text,
         )
+
+        return np.array(response.embeddings[0].values)
 
     def encode_batch(
         self,
-        texts
-    ) -> list:
+        texts: list
+    ):
         """
-        Generates a dense vector embedding array from raw string data.
+        Generates embeddings for multiple texts.
         """
 
-        return self.model.encode(
-            texts,
-            convert_to_numpy=True,
-            normalize_embeddings=True
+        embeddings = []
+
+        for text in texts:
+
+            response = self.client.models.embed_content(
+                model=self.model_name,
+                contents=text,
+            )
+
+            embeddings.append(
+                response.embeddings[0].values
+            )
+
+        return np.array(embeddings)
+
+    def find_similar_papers(
+        self,
+        collection,
+        title: str,
+        abstract: str,
+        top_k: int = 6,
+    ):
+
+        query_text = self.construct_embedding_text(
+            title,
+            abstract,
         )
-
-    def find_similar_papers(self,collection,title: str,abstract: str,top_k: int = 6
-):
-        """
-        Finds semantically similar papers from ChromaDB.
-        """
-
-        query_text = self.construct_embedding_text(title, abstract)
 
         query_embedding = self.encode_text(query_text)
 
-        results = collection.query(
-            query_embeddings=[query_embedding],
+        return collection.query(
+            query_embeddings=[query_embedding.tolist()],
             n_results=top_k + 1,
-            include=["metadatas", "distances"]
+            include=["metadatas", "distances"],
         )
-
-        return results
