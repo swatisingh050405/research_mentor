@@ -2,12 +2,11 @@ import axios from 'axios';
 
 // Base instance configuration
 const api = axios.create({
-  baseURL: 'http://localhost:8000', // Matches your FastAPI Uvicorn port
+  baseURL: import.meta.env.VITE_API_URL, // Matches your FastAPI Uvicorn port
   headers: {
     'Content-Type': 'application/json',
   },
 });
-
 /**
  * Service to fetch research papers
  * @param {string} query - User's search topic
