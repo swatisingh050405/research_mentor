@@ -7,7 +7,7 @@ import MainLayout from './layouts/MainLayout';
 import HomePublic from './pages/HomePublic';
 import HomeUser from './pages/HomeUser';
 import Bookmarks from './pages/Bookmarks';
-import Profile from './pages/Profile';
+import Profile from './pages/profile';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
 import PaperDetail from './pages/PaperDetail';
