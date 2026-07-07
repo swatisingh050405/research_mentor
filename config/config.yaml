@@ -1,6 +1,6 @@
 app:
   name: "Research Mentor AI"
-  environment: "development"
+  environment: "production"
 
 search:
   similarity_threshold: 0.50      # Minimum score match to consider a paper a "cache hit"
