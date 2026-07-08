@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from "../context/AuthContext";
 import RecommendationSidebar from "../components/RecommendationSidebar";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function PaperDetail() {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ export default function PaperDetail() {
       setLoadingRecommendations(true);
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/paper/${paper.id}`
+        `${API_URL}/api/paper/${paper.id}`
       );
 
       if (!response.ok) {

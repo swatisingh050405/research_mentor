@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { motion, AnimatePresence } from 'framer-motion';
 import PaperCard from '../components/PaperCard';
 import SearchBar from '../components/SearchBar';
+const API_URL = import.meta.env.VITE_API_URL;
 
 
 export default function HomePublic() {
@@ -44,7 +45,7 @@ export default function HomePublic() {
       });
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/search?${queryParams.toString()}`
+        `${API_URL}/api/search?${queryParams.toString()}`
       );
 
       if (!response.ok) {
@@ -77,7 +78,7 @@ export default function HomePublic() {
       });
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/search?${queryParams.toString()}`
+        `${API_URL}/api/search?${queryParams.toString()}`
       );
 
       if (!response.ok) {

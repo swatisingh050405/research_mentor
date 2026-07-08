@@ -14,8 +14,8 @@ const api = axios.create({
 export const fetchResearchPapers = async (query) => {
   try {
     const response = await api.get(`/api/search?query=${encodeURIComponent(query)}`);
-    console.log("API Response:", data);
-    console.log("Papers:", data.papers);
+    console.log("API Response:", response.data);
+    console.log("Papers:", response.data.papers);
     return response.data; // { query: "...", papers: [...] }
   } catch (error) {
     console.error("API Error in fetchResearchPapers:", error);

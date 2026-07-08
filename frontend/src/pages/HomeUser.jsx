@@ -6,6 +6,7 @@ import PaperCard from '../components/PaperCard';
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import CollectionModal from "../components/CollectionModal";
+const API_URL = import.meta.env.VITE_API_URL;
 
 export default function HomeUser() {
   const navigate = useNavigate();
@@ -69,7 +70,7 @@ export default function HomeUser() {
         offset: 0
       });
 
-      const response = await fetch(`http://127.0.0.1:8000/api/search?${queryParams.toString()}`);
+      const response = await fetch(`${API_URL}/api/search?${queryParams.toString()}`);
       if (!response.ok) throw new Error(`Status Exception: ${response.status}`);
 
       const data = await response.json();
@@ -172,7 +173,7 @@ export default function HomeUser() {
         offset: nextOffset
       });
 
-      const response = await fetch(`http://127.0.0.1:8000/api/search?${queryParams.toString()}`);
+      const response = await fetch(`${API_URL}/api/search?${queryParams.toString()}`);
       if (!response.ok) throw new Error(`Status Exception: ${response.status}`);
 
       const data = await response.json();
