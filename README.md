@@ -1,109 +1,146 @@
-#  Research Mentor AI
+<div align="center">
 
-**An AI-powered research paper discovery platform** that helps students, researchers, and developers find, understand, and explore academic papers through semantic search, intelligent summarization, difficulty estimation, and personalized recommendations.
+&nbsp;
 
-Instead of relying only on keyword matching, Research Mentor AI uses **vector embeddings and semantic similarity** to retrieve the most relevant research papers and presents **AI-generated summaries** to improve research efficiency.
+<img width="72" src="https://img.icons8.com/fluency/96/microscope.png" alt="microscope icon" />
 
-<p align="center">
-  <img src="https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi&logoColor=white" />
-  <img src="https://img.shields.io/badge/React-Frontend-61DAFB?logo=react&logoColor=black" />
-  <img src="https://img.shields.io/badge/ChromaDB-Vector%20Store-purple" />
-  <img src="https://img.shields.io/badge/Gemini-LLM%20Engine-4285F4?logo=googlegemini&logoColor=white" />
-  <img src="https://img.shields.io/badge/Supabase-Auth-3ECF8E?logo=supabase&logoColor=white" />
+# Research Mentor AI
+
+<h3><em>Semantic search meets AI summarization for academic research</em></h3>
+
+<p>
+<sub>📄 PAPERS IN → 🧠 EMBEDDINGS → 🔍 SEMANTIC MATCH → ✨ AI SUMMARY → 🎯 RECOMMENDATIONS</sub>
 </p>
+
+<table>
+<tr>
+<td align="center"><b>Backend</b><br/><sub>FastAPI</sub></td>
+<td align="center"><b>Frontend</b><br/><sub>React</sub></td>
+<td align="center"><b>Vector Store</b><br/><sub>ChromaDB</sub></td>
+<td align="center"><b>LLM Engine</b><br/><sub>Gemini</sub></td>
+<td align="center"><b>Auth</b><br/><sub>Supabase</sub></td>
+</tr>
+</table>
+
+`active` · `MIT-style · open for learning` · `PRs welcome`
+
+<p>
+<a href="#-features">Features</a> &nbsp;|&nbsp;
+<a href="#️-system-architecture">Architecture</a> &nbsp;|&nbsp;
+<a href="#️-tech-stack">Tech Stack</a> &nbsp;|&nbsp;
+<a href="#️-installation">Installation</a> &nbsp;|&nbsp;
+<a href="#-screenshots">Screenshots</a>
+</p>
+
+</div>
 
 ---
 
-## 📸 Screenshots
+---
 
-<!-- Replace the paths below with your actual screenshot files once added to a /screenshots folder -->
+## 💡 About
 
-| Landing Page | Workspace |
-|---|---|
-| ![Landing Page](screenshots/home.png) | ![Workspace](screenshots/workspace.png) |
-
-| Profile | bookmarks |
-|---|---|
-| ![Search Results](screenshots/profile.png) | ![Paper Detail](screenshots/bookmarks.png) |
-
-
+Instead of relying only on keyword matching, **Research Mentor AI** uses **vector embeddings and semantic similarity** to retrieve the most relevant research papers, then presents **AI-generated summaries** to dramatically speed up literature review — turning hours of paper-hunting into minutes.
 
 ---
 
 ## 🚀 Features
 
+<table>
+<tr>
+<td width="50%" valign="top">
+
 ### 🔍 Semantic Paper Search
-- Search research papers using natural language.
-- Semantic similarity search using Sentence Transformers.
-- Retrieves papers from Semantic Scholar with arXiv as fallback.
+- Search using natural language, not just keywords
+- Semantic similarity via Sentence Transformers
+- Pulls from Semantic Scholar, with arXiv as fallback
+
+</td>
+<td width="50%" valign="top">
 
 ### 🤖 AI Paper Analysis
-- AI-generated paper summaries using **Gemini**.
-- Automatic keyword extraction.
+- AI-generated summaries powered by **Gemini**
+- Automatic keyword extraction
 - Difficulty classification:
-  - Beginner
-  - Intermediate
-  - Advanced
+  - 🟢 Beginner
+  - 🟡 Intermediate
+  - 🔴 Advanced
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
 ### 🧠 Vector Search Engine
-- **ChromaDB** vector database for semantic retrieval.
-- Embedding-based cache system.
-- Intelligent cache hit / cache miss routing.
+- **ChromaDB** vector database for semantic retrieval
+- Embedding-based cache system
+- Intelligent cache hit / cache miss routing
+
+</td>
+<td width="50%" valign="top">
 
 ### 📚 Paper Detail Console
-- Original paper abstract
-- AI summary
-- Keywords
-- Difficulty level
-- Publication information
-- Direct paper link
+- Original abstract + AI summary side by side
+- Extracted keywords & difficulty level
+- Publication info and direct paper link
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
 
 ### 🎯 AI Recommendations
-- Similar paper recommendation using embedding similarity.
-- Context-aware recommendation engine.
-- Fast retrieval from local vector database.
+- Similar-paper recommendations via embedding similarity
+- Context-aware recommendation engine
+- Fast retrieval from local vector database
+
+</td>
+<td width="50%" valign="top">
 
 ### ⭐ User Features
-- Secure authentication using **Supabase**
-- Bookmark papers
-- Responsive dashboard
-- Modern UI with **Tailwind CSS**
+- Secure authentication with **Supabase**
+- Bookmark papers for later
+- Responsive dashboard with modern **Tailwind CSS** UI
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 🏗️ System Architecture
 
 ```
-User Query
-   │
-   ▼
-Gemini Intent Extraction
-   │
-   ▼
-ChromaDB Semantic Search
-   │
-   ▼
-Cache Hit? ──── YES ──► Return Cached Papers
-   │
-   NO
-   │
-   ▼
-Semantic Scholar API
-   │
-   ▼
-arXiv Fallback
-   │
-   ▼
-Gemini Analysis
-   │
-   ▼
-Generate Embeddings
-   │
-   ▼
-Store in ChromaDB
-   │
-   ▼
-Return Results
+                         User Query
+                             │
+                             ▼
+                Gemini Intent Extraction
+                             │
+                             ▼
+                ChromaDB Semantic Search
+                             │
+                             ▼
+                  Cache Hit? ──YES──► Return Cached Papers
+                             │
+                            NO
+                             │
+                             ▼
+                  Semantic Scholar API
+                             │
+                             ▼
+                      arXiv Fallback
+                             │
+                             ▼
+                     Gemini Analysis
+                             │
+                             ▼
+                   Generate Embeddings
+                             │
+                             ▼
+                    Store in ChromaDB
+                             │
+                             ▼
+                      Return Results
 ```
 
 ---
@@ -112,11 +149,11 @@ Return Results
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | React.js, Vite, Tailwind CSS, Framer Motion, React Router |
-| **Backend** | FastAPI, Python |
-| **AI / ML** | Google Gemini API, Sentence Transformers, ChromaDB, Semantic Search |
-| **External APIs** | Semantic Scholar API, arXiv API |
-| **Database / Auth** | ChromaDB, Supabase |
+| 🎨 **Frontend** | React.js · Vite · Tailwind CSS · Framer Motion · React Router |
+| ⚙️ **Backend** | FastAPI · Python |
+| 🧠 **AI / ML** | Google Gemini API · Sentence Transformers · ChromaDB · Semantic Search |
+| 🌐 **External APIs** | Semantic Scholar API · arXiv API |
+| 🗄️ **Database / Auth** | ChromaDB · Supabase |
 
 ---
 
@@ -152,12 +189,12 @@ backend/
 
 ## ⚙️ Installation
 
-### 1. Clone the Repository
+### 1️⃣ Clone the Repository
 ```bash
 git clone https://github.com/yourusername/research-mentor-ai.git
 ```
 
-### 2. Backend Setup
+### 2️⃣ Backend Setup
 ```bash
 cd backend
 python -m venv venv
@@ -166,7 +203,7 @@ pip install -r requirements.txt
 uvicorn src.backend.main:app --reload
 ```
 
-### 3. Frontend Setup
+### 3️⃣ Frontend Setup
 ```bash
 cd frontend
 npm install
@@ -187,25 +224,56 @@ SUPABASE_KEY=YOUR_SUPABASE_ANON_KEY
 
 ---
 
-## 🎯 Future Improvements
+## 📸 Screenshots
 
-- [ ] PDF upload & summarization
-- [ ] Citation generation
-- [ ] Research roadmap generation
-- [ ] Notes & collections
-- [ ] Multi-model LLM support
-- [ ] Research trend visualization
+<div align="center">
+
+| Landing Page | Workspace |
+|:---:|:---:|
+| ![Landing Page](screenshots/home.png) | ![Workspace](screenshots/workspace.png) |
+
+| Profile | Bookmarks |
+|:---:|:---:|
+| ![Profile](screenshots/profile.png) | ![Bookmarks](screenshots/bookmarks.png) |
+
+</div>
+
+---
+
+## 🎯 Roadmap
+
+- [ ] 📄 PDF upload & summarization
+- [ ] 🔗 Citation generation
+- [ ] 🗺️ Research roadmap generation
+- [ ] 🗒️ Notes & collections
+- [ ] 🔀 Multi-model LLM support
+- [ ] 📈 Research trend visualization
 
 ---
 
 ## 👩‍💻 Author
 
+<div align="center">
+
 **Swati Singh**
 
 Built as an end-to-end AI-powered research assistant integrating semantic search, vector databases, and Large Language Models to simplify academic literature exploration.
+
+[![GitHub](https://img.shields.io/badge/GitHub-100000?style=for-the-badge&logo=github&logoColor=white)](#)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](#)
+
+</div>
 
 ---
 
 ## 📄 License
 
 This project is open for learning and portfolio purposes. Add a license here if you plan to open-source it further.
+
+---
+
+<div align="center">
+
+⭐ If you find this project useful, consider giving it a star!
+
+</div>
