@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
 
 export default function Profile() {
@@ -18,11 +17,10 @@ export default function Profile() {
       if (!user) return;
 
       setUserProfile({
-        fullName: user.user_metadata.full_name,
+        fullName: user.user_metadata?.full_name || "Swati Singh",
         email: user.email,
         username: "@" + user.email.split("@")[0],
-        role: "Researcher",
-        tier: "Free",
+        role: "AI & ML Researcher",
       });
 
       const { count: bookmarkCount } = await supabase
@@ -55,11 +53,18 @@ export default function Profile() {
   }, []);
 
   if (!userProfile) {
-    return <div className="p-10 text-center">Loading...</div>;
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
+        <div className="w-10 h-10 border-4 border-purple-100 border-t-[var(--color-brand-primary)] rounded-full animate-spin" />
+        <p className="text-xs font-bold text-slate-500">
+          Fetching profile metrics...
+        </p>
+      </div>
+    );
   }
 
   const stats = [
-    { label: "Papers Saved", value: savedCount, icon: "📄" },
+    { label: "Saved Papers", value: savedCount, icon: "📄" },
     { label: "Collections", value: collectionsCount, icon: "🗂️" },
     { label: "Searches Run", value: searchCount, icon: "🔍" },
   ];
@@ -102,151 +107,161 @@ export default function Profile() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-8 md:p-10 space-y-8 font-interface animate-in fade-in duration-500">
-      {/* ─── PREMIUM PROFILE BANNER CARD ─── */}
-      <div className="bg-white rounded-[32px] border border-purple-100/60 shadow-[0_15px_40px_rgba(123,47,247,0.06)] overflow-hidden">
-        <div className="h-44 w-full relative overflow-hidden bg-linear-to-br from-[var(--color-brand-primary)] via-[#7B3FF2] to-[var(--color-brand-accent)]">
-          <div className="absolute inset-0 opacity-[0.15] bg-[radial-gradient(circle_at_20%_20%,white,transparent_35%)]" />
-          <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_80%_60%,white,transparent_40%)]" />
-
-          <motion.div
-            animate={{ y: [0, 10, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute top-[-30%] left-[8%] w-40 h-40 bg-white/20 rounded-full blur-3xl"
-          />
-          <motion.div
-            animate={{ y: [0, -12, 0] }}
-            transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
-            className="absolute bottom-[-40%] right-[15%] w-56 h-56 bg-[#F5D0FE]/20 rounded-full blur-3xl"
-          />
-
-          <div
-            className="absolute inset-0 opacity-[0.06]"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(135deg, white 0px, white 1px, transparent 1px, transparent 14px)",
-            }}
-          />
-
-          <div className="absolute top-5 right-6">
-            <span className="text-[10px] font-bold uppercase tracking-wider bg-white/15 backdrop-blur-md text-white border border-white/25 px-3 py-1.5 rounded-lg font-display flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-              {userProfile.tier} Active
-            </span>
-          </div>
-        </div>
-
-        <div className="px-8 pb-8 relative">
-          <div className="absolute -top-12 left-8 w-24 h-24 bg-linear-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] rounded-[1.75rem] rotate-3 flex items-center justify-center shadow-xl shadow-purple-300/40 border-[6px] border-white group transition-transform hover:rotate-0 duration-300">
-            <span className="font-black text-3xl text-white font-display -rotate-3 group-hover:rotate-0 transition-transform">
-              {userProfile.fullName
-                ?.split(" ")
-                .map((name) => name[0])
-                .join("")
-                .slice(0, 2)
-                .toUpperCase()}
-            </span>
-            <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-400 border-[3px] border-white" />
-          </div>
-
-          <div className="pt-16">
-            <h1 className="text-2xl font-black text-slate-900 tracking-tight font-display">
-              {userProfile.fullName}
-            </h1>
-
-            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-              <span className="text-sm font-bold text-[var(--color-brand-primary)]">
-                {userProfile.username}
-              </span>
-              <span className="w-1 h-1 rounded-full bg-slate-300" />
-              <span className="text-sm font-medium text-slate-500">
-                {userProfile.email}
-              </span>
-            </div>
-
-            <p className="text-sm text-slate-500 font-medium mt-3 flex items-center gap-2">
-              <span className="text-[var(--color-brand-accent)]">💼</span>{" "}
-              {userProfile.role}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mt-7 pt-6 border-t border-purple-50">
-            {stats.map((stat) => (
-              <div
-                key={stat.label}
-                className="flex items-center gap-3 p-3 rounded-2xl hover:bg-[#F6F5FD] transition-colors duration-200"
-              >
-                <div className="w-9 h-9 rounded-xl bg-linear-to-br from-[var(--color-brand-primary)]/10 to-[var(--color-brand-accent)]/10 flex items-center justify-center text-base shrink-0">
-                  {stat.icon}
-                </div>
-                <div>
-                  <p className="text-base font-black text-slate-900 font-display leading-none">
-                    {stat.value}
-                  </p>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mt-1">
-                    {stat.label}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ─── RECENT SEARCHES HISTORY PANEL ─── */}
-      <div className="bg-white rounded-[32px] border border-purple-100/60 shadow-[0_15px_40px_rgba(123,47,247,0.04)] p-8">
-        <div className="flex justify-between items-end mb-6 border-b border-purple-50 pb-4">
-          <div>
-            <h2 className="text-lg font-black text-slate-900 tracking-tight font-display flex items-center gap-2">
-              <span>🔍</span> Recent Search Queries
-            </h2>
-            <p className="text-xs text-slate-400 font-medium tracking-wide mt-1">
-              Your historical log of parsed AI models and architecture streams.
-            </p>
-          </div>
-          <button
-            onClick={handleClearHistory}
-            className="text-xs font-bold text-[var(--color-brand-primary)] hover:text-[var(--color-brand-accent)] transition-colors cursor-pointer"
-          >
-            Clear History
-          </button>
-        </div>
-
-        <div className="space-y-1">
-          {recentSearches.length === 0 && (
-            <div className="text-center py-10 text-slate-400">
-              No search history yet.
-            </div>
-          )}
-          {recentSearches.map((search) => (
+    <div className="relative min-h-full w-full font-interface bg-[#FDFDFF] pb-12">
+      {/* 🌟 MAIN CONTENT CONTAINER */}
+      <div className="max-w-5xl w-full mx-auto space-y-6 relative z-10 animate-in fade-in duration-300 pt-2">
+        {/* ─── PROFILE CARD WITH COMPACT ARTIFICIAL PATTERN BANNER ─── */}
+        <div className="bg-white rounded-[2rem] border border-purple-100/80 shadow-xs overflow-hidden">
+          {/* Compact Geometric Mesh Banner */}
+          <div className="h-24 w-full relative overflow-hidden bg-gradient-to-r from-purple-50 via-indigo-50/60 to-purple-50">
             <div
-              key={search.id}
-              className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl hover:bg-[#F6F5FD] transition-colors duration-200 group gap-4"
-            >
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-xl bg-purple-50 text-[var(--color-brand-primary)] flex items-center justify-center shrink-0 border border-purple-100/50 group-hover:bg-white group-hover:shadow-md group-hover:shadow-purple-100 transition-all">
-                  <span className="text-sm">💬</span>
+              className="absolute inset-0 opacity-[0.4]"
+              style={{
+                backgroundImage: `
+                  radial-gradient(at 20% 20%, rgba(124, 58, 237, 0.15) 0px, transparent 50%),
+                  radial-gradient(at 80% 80%, rgba(168, 85, 247, 0.15) 0px, transparent 50%),
+                  linear-gradient(to right, rgba(124,58,237,0.05) 1px, transparent 1px),
+                  linear-gradient(to bottom, rgba(124,58,237,0.05) 1px, transparent 1px)
+                `,
+                backgroundSize: "100% 100%, 100% 100%, 24px 24px, 24px 24px",
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
+          </div>
+
+          {/* User Details & Avatar */}
+          <div className="px-6 md:px-8 pb-6 relative">
+            {/* Avatar Pill overlapping banner */}
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-10 mb-4">
+              <div className="relative shrink-0">
+                <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white font-black text-2xl flex items-center justify-center shadow-md shadow-purple-600/15 font-display border-4 border-white">
+                  {userProfile.fullName
+                    ?.split(" ")
+                    .map((name) => name[0])
+                    .join("")
+                    .slice(0, 2)
+                    .toUpperCase()}
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-800 group-hover:text-[var(--color-brand-primary)] transition-colors line-clamp-1">
-                    {search.query}
-                  </h4>
-                  <p className="text-[11px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">
-                    {search.search_date}
-                  </p>
-                </div>
+                <span className="absolute bottom-1 right-1 w-3.5 h-3.5 rounded-full bg-emerald-400 border-2 border-white" />
               </div>
 
-              <div className="flex items-center gap-4 pl-14 md:pl-0">
-                <button
-                  onClick={() => handleDeleteSingleSearch(search.id)}
-                  className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors cursor-pointer"
-                >
-                  Remove
-                </button>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-50 border border-purple-100 text-xs font-bold text-[var(--color-brand-primary)] self-start sm:self-auto">
+                💼 {userProfile.role}
+              </span>
+            </div>
+
+            {/* Profile Info Header */}
+            <div className="space-y-1">
+              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-display">
+                {userProfile.fullName}
+              </h1>
+
+              <div className="flex items-center gap-3 text-xs font-semibold text-slate-500 flex-wrap">
+                <span className="text-[var(--color-brand-primary)] font-bold">
+                  {userProfile.username}
+                </span>
+                <span className="w-1 h-1 rounded-full bg-slate-300" />
+                <span>✉️ {userProfile.email}</span>
               </div>
             </div>
-          ))}
+
+            {/* Metrics Dashboard Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mt-6 pt-6 border-t border-purple-100/60">
+              {stats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="flex items-center gap-3 p-3 rounded-xl bg-purple-50/40 border border-purple-100/60 hover:bg-purple-50/80 transition-all duration-200"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-white border border-purple-100 flex items-center justify-center text-base shrink-0 shadow-2xs">
+                    {stat.icon}
+                  </div>
+                  <div>
+                    <p className="text-base font-black text-slate-900 font-display leading-none">
+                      {stat.value}
+                    </p>
+                    <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mt-1">
+                      {stat.label}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── RECENT SEARCH HISTORY PANEL ─── */}
+        <div className="bg-white rounded-[2rem] border border-purple-100/80 shadow-xs p-6 md:p-8">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-6 border-b border-purple-100/60 pb-4">
+            <div>
+              <h2 className="text-base font-black text-slate-900 tracking-tight font-display flex items-center gap-2">
+                <span>🔍</span> Search Query History
+              </h2>
+              <p className="text-xs text-slate-400 font-medium tracking-wide mt-0.5">
+                Your recent AI search requests and literature explorations.
+              </p>
+            </div>
+
+            {recentSearches.length > 0 && (
+              <button
+                onClick={handleClearHistory}
+                className="text-xs font-bold text-red-500 hover:text-red-600 bg-red-50/60 hover:bg-red-50 border border-red-100/80 px-3.5 py-1.5 rounded-xl transition-all cursor-pointer self-start sm:self-auto"
+              >
+                Clear History
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            {recentSearches.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">
+                <span className="text-2xl block mb-2">📭</span>
+                <p className="text-xs font-bold">
+                  No search history recorded yet.
+                </p>
+                <p className="text-[11px] text-slate-400 font-medium mt-1">
+                  Searches you run from the workspace will appear here.
+                </p>
+              </div>
+            ) : (
+              recentSearches.map((search) => (
+                <div
+                  key={search.id}
+                  className="flex items-center justify-between p-3.5 rounded-2xl bg-purple-50/30 border border-purple-100/40 hover:bg-purple-50/70 hover:border-purple-200/80 transition-all group gap-4"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-white text-[var(--color-brand-primary)] flex items-center justify-center shrink-0 border border-purple-100 shadow-2xs group-hover:scale-105 transition-transform">
+                      <span className="text-xs">💬</span>
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-800 group-hover:text-[var(--color-brand-primary)] transition-colors truncate">
+                        {search.query}
+                      </h4>
+                      <p className="text-[10px] font-semibold text-slate-400 mt-0.5 tracking-wider">
+                        {search.search_date
+                          ? new Date(search.search_date).toLocaleDateString(
+                              "en-US",
+                              {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              },
+                            )
+                          : "Recent"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => handleDeleteSingleSearch(search.id)}
+                    className="text-xs font-bold text-slate-400 hover:text-red-500 transition-colors cursor-pointer px-2 py-1 rounded-lg hover:bg-white"
+                    title="Remove item"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>

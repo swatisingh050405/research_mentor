@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { PublicSearchProvider } from "./context/PublicSearchContext";
+import { UserSearchProvider } from "./context/UserSearchContext";
 import AuthLayout from './layouts/AuthLayout';
 import MainLayout from './layouts/MainLayout';
 
@@ -12,9 +14,12 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import PaperDetail from './pages/PaperDetail';
 
+
 export default function App() {
   return (
     <AuthProvider>
+       <PublicSearchProvider>
+        <UserSearchProvider>
       <Router>
         <Routes>
           {/* Public Routes */}
@@ -33,6 +38,8 @@ export default function App() {
           </Route>
         </Routes>
       </Router>
+    </UserSearchProvider>
+    </PublicSearchProvider>
     </AuthProvider>
   );
 }

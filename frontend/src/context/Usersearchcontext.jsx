@@ -1,0 +1,76 @@
+import React, { createContext, useContext, useState } from "react";
+
+/**
+ * Holds search state (topic, description, results, pagination) for the
+ * logged-in workspace home page (HomeUser). Lives ABOVE the routes in the component
+ * tree (wrap it in App.jsx, alongside AuthProvider), so navigating to
+ * PaperDetail and back does NOT reset it — only HomeUser's own
+ * useState would be lost on unmount, this context survives.
+ *
+ * A full browser reload still resets this (same as any in-memory React
+ * state) — that's expected and fine; the bug being fixed here is SPA
+ * navigation (back button / links), not page reloads.
+ */
+const UserSearchContext = createContext(null);
+
+const initialState = {
+  topic: "",
+  description: "",
+  papers: [],
+  searchId: null,
+  hasMore: false,
+  searched: false,
+  errorMessage: null,
+};
+
+export function UserSearchProvider({ children }) {
+  const [topic, setTopic] = useState(initialState.topic);
+  const [description, setDescription] = useState(initialState.description);
+  const [papers, setPapers] = useState(initialState.papers);
+  const [searchId, setSearchId] = useState(initialState.searchId);
+  const [hasMore, setHasMore] = useState(initialState.hasMore);
+  const [searched, setSearched] = useState(initialState.searched);
+  const [errorMessage, setErrorMessage] = useState(initialState.errorMessage);
+
+  const resetSearch = () => {
+    setTopic(initialState.topic);
+    setDescription(initialState.description);
+    setPapers(initialState.papers);
+    setSearchId(initialState.searchId);
+    setHasMore(initialState.hasMore);
+    setSearched(initialState.searched);
+    setErrorMessage(initialState.errorMessage);
+  };
+
+  const value = {
+    topic,
+    setTopic,
+    description,
+    setDescription,
+    papers,
+    setPapers,
+    searchId,
+    setSearchId,
+    hasMore,
+    setHasMore,
+    searched,
+    setSearched,
+    errorMessage,
+    setErrorMessage,
+    resetSearch,
+  };
+
+  return (
+    <UserSearchContext.Provider value={value}>
+      {children}
+    </UserSearchContext.Provider>
+  );
+}
+
+export function useUserSearch() {
+  const ctx = useContext(UserSearchContext);
+  if (!ctx) {
+    throw new Error("useUserSearch must be used within a UserSearchProvider");
+  }
+  return ctx;
+}

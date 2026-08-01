@@ -1,26 +1,38 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { motion, AnimatePresence } from 'framer-motion';
-import PaperCard from '../components/PaperCard';
-import SearchBar from '../components/SearchBar';
-const API_URL = import.meta.env.VITE_API_URL;
-
+import { usePublicSearch } from "../context/PublicSearchContext";
+import { motion, AnimatePresence } from "framer-motion";
+import PaperCard from "../components/PaperCard";
+import SearchBar from "../components/SearchBar";
+import { startSearch, loadMoreResults } from "../services/api";
 
 export default function HomePublic() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [topic, setTopic] = useState('');
-  const [description, setDescription] = useState('');
+  // Search state lives in PublicSearchContext (above the routes), so it
+  // survives navigating to PaperDetail and back — only transient UI state
+  // (isLoading, loadingMore) stays local since those SHOULD reset.
+  const {
+    topic,
+    setTopic,
+    description,
+    setDescription,
+    papers,
+    setPapers,
+    searchId,
+    setSearchId,
+    hasMore,
+    setHasMore,
+    searched,
+    setSearched,
+    errorMessage,
+    setErrorMessage,
+  } = usePublicSearch();
+
   const [isLoading, setIsLoading] = useState(false);
-  const [papers, setPapers] = useState([]);
-  const [offset, setOffset] = useState(0);
-  const [query, setQuery] = useState("");
-  const [errorMessage, setErrorMessage] = useState(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [searched, setSearched] = useState(false);
 
   const handlePublicSearch = async (e) => {
     e.preventDefault();
@@ -29,38 +41,21 @@ export default function HomePublic() {
 
     setIsLoading(true);
     setErrorMessage(null);
-    setHasMore(true);
     setSearched(true);
     setPapers([]);
-
-    const finalQuery = `${topic} ${description}`.trim();
-
-    setQuery(finalQuery);
-    setOffset(0);
+    setSearchId(null);
+    setHasMore(false);
 
     try {
-      const queryParams = new URLSearchParams({
-        query: finalQuery,
-        offset: 0
-      });
+      const data = await startSearch(topic, description);
 
-      const response = await fetch(
-        `${API_URL}/api/search?${queryParams.toString()}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Status Exception: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      console.log(data);
-
-      setPapers(data.papers || []);
+      setPapers(data.results || []);
+      setSearchId(data.search_id);
+      setHasMore(Boolean(data.has_more));
     } catch (error) {
       console.error(error);
       setErrorMessage(
-        "Local ML API Pipeline status offline. Verify terminal session." 
+        "Local ML API Pipeline status offline. Verify terminal session.",
       );
     } finally {
       setIsLoading(false);
@@ -68,42 +63,33 @@ export default function HomePublic() {
   };
 
   const handleLoadMore = async () => {
-    setLoadingMore(true);
-    try {
-      const nextOffset = offset + 5;
+    if (!searchId) return;
 
-      const queryParams = new URLSearchParams({
-        query: query,
-        offset: nextOffset
+    setLoadingMore(true);
+
+    try {
+      const data = await loadMoreResults(searchId, papers.length);
+
+      if (data.expired) {
+        setHasMore(false);
+        setErrorMessage(
+          "This search session expired. Please search again to continue browsing.",
+        );
+        return;
+      }
+
+      const newPapers = data.results || [];
+
+      setPapers((prev) => {
+        const ids = new Set(prev.map((p) => p.paper_id));
+        const filtered = newPapers.filter((paper) => !ids.has(paper.paper_id));
+        return [...prev, ...filtered];
       });
 
-      const response = await fetch(
-        `${API_URL}/api/search?${queryParams.toString()}`
-      );
-
-      if (!response.ok) {
-        throw new Error(`Status Exception: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const newPapers = data.papers || [];
-
-    setPapers(prev => {
-    const ids = new Set(prev.map(p => p.id));
-
-    const filtered = newPapers.filter(
-        paper => !ids.has(paper.id)
-    );
-
-    return [...prev, ...filtered];
-});
-      setOffset(nextOffset);
-
-      if (newPapers.length < 5) {
-        setHasMore(false);
-      }
+      setHasMore(Boolean(data.has_more));
     } catch (error) {
       console.error(error);
+      setErrorMessage("Failed to load more papers. Please try again.");
     } finally {
       setLoadingMore(false);
     }
@@ -316,13 +302,8 @@ export default function HomePublic() {
               <div className="space-y-8">
                 {papers.map((paper, idx) => (
                   <PaperCard
-                    key={paper.id || idx}
-                    paper={{
-                      ...paper,
-                      summary:
-                        paper.ai_summary || paper.summary || paper.abstract,
-                      keywords: paper.keywords || [],
-                    }}
+                    key={paper.paper_id || idx}
+                    paper={paper}
                     onBookmarkToggle={() =>
                       alert("Please Sign In to save this paper!")
                     }

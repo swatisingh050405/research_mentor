@@ -1,19 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import PaperCard from '../components/PaperCard';
+import React, { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import PaperCard from "../components/PaperCard";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 
 export default function Bookmarks() {
   const { user } = useAuth();
-  const [collections, setCollections] = useState([
-    { id: "saved", name: "Saved Papers", bookmarks: [] },
-  ]);
+  const [collections, setCollections] = useState([]); // Start empty
   const [activeCollectionId, setActiveCollectionId] = useState(null);
 
   // ─── New Collection Modal State ───
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [newCollectionName, setNewCollectionName] = useState('');
+  const [newCollectionName, setNewCollectionName] = useState("");
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -24,19 +22,17 @@ export default function Bookmarks() {
   const fetchBookmarks = async () => {
     const { data, error } = await supabase
       .from("collections")
-      .select(`
+      .select(
+        `
         id,
         name,
         bookmarks (
           id,
           paper_id,
-          title,
-          authors,
-          summary,
-          year,
-          pdf_url
+          paper_data
         )
-      `)
+      `,
+      )
       .eq("user_id", user.id);
 
     if (error) {
@@ -44,23 +40,26 @@ export default function Bookmarks() {
       return;
     }
 
-    setCollections(data || []);
+    const fetchedCollections = data || [];
+    setCollections(fetchedCollections);
+
+    // Automatically set the active collection to the first collection if not set,
+    // or keep the current one if it still exists.
+    if (fetchedCollections.length > 0) {
+      setActiveCollectionId((prev) => {
+        const exists = fetchedCollections.some((c) => c.id === prev);
+        return exists ? prev : fetchedCollections[0].id;
+      });
+    }
   };
 
-  useEffect(() => {
-    if (collections.length > 0 && !activeCollectionId) {
-      setActiveCollectionId(collections[0].id);
-    }
-  }, [collections]);
+  const activeCollection = collections.find((c) => c.id === activeCollectionId);
 
-  const activeCollection =
-    collections.find((c) => c.id === activeCollectionId) || collections[0];
-
-  const handleRemoveBookmark = async (paper) => {
+  const handleRemoveBookmark = async (bookmark) => {
     const { error } = await supabase
       .from("bookmarks")
       .delete()
-      .eq("id", paper.id);
+      .eq("id", bookmark.id);
 
     if (error) {
       console.error(error);
@@ -91,13 +90,12 @@ export default function Bookmarks() {
 
     setCollections((prev) => [...prev, { ...data, bookmarks: [] }]);
     setActiveCollectionId(data.id);
-    setNewCollectionName('');
+    setNewCollectionName("");
     setShowCreateModal(false);
   };
 
   return (
     <div className="w-full max-w-5xl mx-auto px-8 md:px-12 pt-4 space-y-10 font-interface animate-in fade-in duration-500">
-
       {/* Vault Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-purple-100/50 pb-6">
         <div className="space-y-2">
@@ -108,7 +106,8 @@ export default function Bookmarks() {
             Research Collections
           </h1>
           <p className="text-xs text-slate-500 font-medium tracking-wide pl-12">
-            Organize your saved academic streams into dedicated thematic folders.
+            Organize your saved academic streams into dedicated thematic
+            folders.
           </p>
         </div>
         <button
@@ -119,9 +118,9 @@ export default function Bookmarks() {
         </button>
       </div>
 
-      {/* Folders/Pills Navigation — with sliding active indicator */}
+      {/* Folders/Pills Navigation */}
       <div className="flex flex-wrap items-center gap-3 relative">
-        {collections.map(collection => {
+        {collections.map((collection) => {
           const isActive = activeCollectionId === collection.id;
           return (
             <button
@@ -129,8 +128,8 @@ export default function Bookmarks() {
               onClick={() => setActiveCollectionId(collection.id)}
               className={`relative px-5 py-2.5 rounded-xl text-xs font-bold tracking-wide transition-colors duration-300 font-display border overflow-hidden cursor-pointer ${
                 isActive
-                  ? 'text-white border-transparent'
-                  : 'bg-white text-slate-500 border-purple-100 hover:border-[var(--color-brand-primary)]/40 hover:text-[var(--color-brand-primary)]'
+                  ? "text-white border-transparent"
+                  : "bg-white text-slate-500 border-purple-100 hover:border-[var(--color-brand-primary)]/40 hover:text-[var(--color-brand-primary)]"
               }`}
             >
               {isActive && (
@@ -142,14 +141,16 @@ export default function Bookmarks() {
               )}
               <span className="relative z-10">
                 {collection.name}{" "}
-                <span className="ml-1.5 opacity-70">({collection.bookmarks?.length || 0})</span>
+                <span className="ml-1.5 opacity-70">
+                  ({collection.bookmarks?.length || 0})
+                </span>
               </span>
             </button>
           );
         })}
       </div>
 
-      {/* FULL WIDTH CARDS FEED — animated on collection switch */}
+      {/* FULL WIDTH CARDS FEED */}
       <div className="w-full min-h-[400px]">
         <AnimatePresence mode="wait">
           {activeCollection?.bookmarks?.length > 0 ? (
@@ -161,17 +162,17 @@ export default function Bookmarks() {
               transition={{ duration: 0.25, ease: "easeOut" }}
               className="flex flex-col gap-6"
             >
-              {activeCollection.bookmarks.map((paper, i) => (
+              {activeCollection.bookmarks.map((bookmark, i) => (
                 <motion.div
-                  key={paper.id}
+                  key={bookmark.id}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.25, delay: i * 0.05 }}
                 >
                   <PaperCard
-                    paper={paper}
+                    paper={bookmark.paper_data}
                     isBookmarked={true}
-                    onBookmarkToggle={handleRemoveBookmark}
+                    onBookmarkToggle={() => handleRemoveBookmark(bookmark)}
                   />
                 </motion.div>
               ))}
@@ -186,7 +187,9 @@ export default function Bookmarks() {
               className="h-full flex flex-col items-center justify-center text-center space-y-4 py-20 bg-white/40 rounded-3xl border border-dashed border-purple-200"
             >
               <div className="text-4xl opacity-50">📭</div>
-              <h3 className="text-lg font-black text-slate-800 font-display">Folder is Empty</h3>
+              <h3 className="text-lg font-black text-slate-800 font-display">
+                Folder is Empty
+              </h3>
               <p className="text-xs text-slate-400 font-medium max-w-sm">
                 No papers in this collection yet.
               </p>
@@ -195,7 +198,7 @@ export default function Bookmarks() {
         </AnimatePresence>
       </div>
 
-      {/* ─── NEW COLLECTION MODAL ─── */}
+      {/* NEW COLLECTION MODAL */}
       <AnimatePresence>
         {showCreateModal && (
           <motion.div
@@ -261,7 +264,6 @@ export default function Bookmarks() {
           </motion.div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }

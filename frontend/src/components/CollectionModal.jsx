@@ -94,7 +94,7 @@ export default function CollectionModal({ open, onClose, paper, onSaved }) {
       .from("bookmarks")
       .select("id")
       .eq("user_id", user.id)
-      .eq("paper_id", paper.id)
+      .eq("paper_id", paper.paper_id)
       .eq("collection_id", selectedCollection)
       .maybeSingle();
 
@@ -105,16 +105,16 @@ export default function CollectionModal({ open, onClose, paper, onSaved }) {
       return;
     }
 
+    // Save the whole paper object as a JSONB snapshot — whatever shape
+    // the backend gave us (title, authors, summary, abstract, year, url,
+    // pdf_url, source, difficulty_level, keywords) is preserved as-is,
+    // so PaperCard renders bookmarks identically to live search results.
     const { error } = await supabase.from("bookmarks").insert([
       {
         user_id: user.id,
         collection_id: selectedCollection,
-        paper_id: paper.id,
-        title: paper.title,
-        authors: paper.authors,
-        summary: paper.summary || paper.abstract,
-        year: paper.year,
-        pdf_url: paper.link || paper.url,
+        paper_id: paper.paper_id,
+        paper_data: paper,
       },
     ]);
 
@@ -202,7 +202,9 @@ export default function CollectionModal({ open, onClose, paper, onSaved }) {
                       />
                       <span
                         className={`text-sm font-semibold ${
-                          isSelected ? "text-[var(--color-brand-primary)]" : "text-slate-700"
+                          isSelected
+                            ? "text-[var(--color-brand-primary)]"
+                            : "text-slate-700"
                         }`}
                       >
                         {collection.name}
@@ -225,7 +227,9 @@ export default function CollectionModal({ open, onClose, paper, onSaved }) {
                   placeholder="e.g. AI Papers"
                   value={newCollection}
                   onChange={(e) => setNewCollection(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleCreateCollection()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && handleCreateCollection()
+                  }
                   className="flex-1 border border-purple-100 bg-purple-50/10 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[var(--color-brand-primary)] focus:ring-4 focus:ring-[var(--color-brand-primary)]/10 transition-all shadow-inner"
                 />
                 <button
@@ -258,9 +262,24 @@ export default function CollectionModal({ open, onClose, paper, onSaved }) {
               >
                 {saving ? (
                   <>
-                    <svg className="animate-spin h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    <svg
+                      className="animate-spin h-3.5 w-3.5 text-white"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      />
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      />
                     </svg>
                     Saving...
                   </>
@@ -269,7 +288,6 @@ export default function CollectionModal({ open, onClose, paper, onSaved }) {
                 )}
               </button>
             </div>
-
           </motion.div>
         </motion.div>
       )}
