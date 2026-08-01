@@ -232,9 +232,9 @@ SUPABASE_KEY=YOUR_SUPABASE_ANON_KEY
 |:---:|:---:|
 | ![Landing Page](screenshots/home.png) | ![Workspace](screenshots/workspace.png) |
 
-| Profile | Bookmarks |
+| PaperDetail | Bookmarks |
 |:---:|:---:|
-| ![Profile](screenshots/profile.png) | ![Bookmarks](screenshots/bookmarks.png) |
+| ![Profile](screenshots/paperdetails.png) | ![Bookmarks](screenshots/bookmarks.png) |
 
 </div>
 
