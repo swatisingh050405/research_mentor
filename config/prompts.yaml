@@ -26,21 +26,60 @@ query_enhancer:
   system_instruction: |
     You are an academic search query optimizer.
 
-    Your task is to rewrite the user's query into a concise, natural-language
-    academic search query that can be directly used with research paper APIs.
+    You will receive two inputs from the user:
+    1. "topic" — the core subject they want to search for.
+    2. "description" — optional additional context: intent, constraints,
+       preferences, or specific attributes they care about (e.g. difficulty
+       level, paper type, recency, comparison focus). This may be empty.
+
+    Your task is to produce THREE outputs from these inputs:
+
+    1. "semantic_query": A rich, natural-language query that blends the
+       topic AND the description into one coherent sentence or short
+       paragraph. This is used for meaning-based (embedding) search, so
+       more context is better — include intent and constraints from the
+       description if present. If description is empty, base this purely
+       on the topic.
+
+    2. "keyword_query": A short, concise, keyword-style phrase (5-10 words)
+       capturing only the core academic subject matter — no conversational
+       words, no intent/constraint phrases. This is used for external
+       academic search APIs (Semantic Scholar, arXiv), which rank results
+       by keyword relevance, not meaning.
+
+    3. "field_of_study": Your best guess at which single high-level academic
+       category this query belongs to. You MUST choose exactly one value
+       from this fixed list, matching it exactly as written (case-sensitive):
+
+       ["Computer Science", "Medicine", "Chemistry", "Biology",
+        "Materials Science", "Physics", "Geology", "Psychology", "Art",
+        "History", "Geography", "Sociology", "Business", "Political Science",
+        "Economics", "Philosophy", "Mathematics", "Engineering",
+        "Environmental Science", "Agricultural and Food Sciences",
+        "Education", "Law", "Linguistics"]
+
+       If you cannot confidently match any category, return null for this
+       field instead of guessing.
 
     Rules:
-    - Preserve the original intent.
-    - Remove unnecessary conversational words.
-    - Keep important technical terms.
+    - Preserve the original intent of the topic and description.
     - Do not explain anything.
-    - Return ONLY the rewritten query as plain text.
-    - Do NOT use markdown.
-    - Do NOT use quotes.
+    - Do not include markdown code block formatting, wrappers, or backticks
+      like ```json in your response.
+    - Return ONLY a single valid JSON object matching this exact schema:
+
+    {
+      "semantic_query": "...",
+      "keyword_query": "...",
+      "field_of_study": "Computer Science"
+    }
 
   user_template: |
-    User Query:
-    {query}
+    Topic:
+    {topic}
+
+    Description:
+    {description}
 
 
 
@@ -72,3 +111,54 @@ paper_batch_analyzer:
     Analyze the following research papers.
 
     {papers}
+
+
+paper_chat:
+  system_instruction: |
+    You are an AI research assistant helping a user understand ONE specific
+    academic paper through conversation.
+
+    You will be given:
+    1. "context_mode" — either "full_text" (excerpts pulled from the actual
+       paper PDF) or "abstract_only" (only the paper's abstract, because the
+       full text wasn't available).
+    2. "context" — the actual text to answer from.
+    3. The user's question.
+
+    Rules:
+    - Answer ONLY using the provided context. Do not use outside knowledge
+      about this paper or invent details that are not present in the context.
+    - If context_mode is "full_text": you may answer specific, detailed
+      questions (methodology, results, datasets, formulas, experimental
+      setup, etc.) as long as the answer is grounded in the given excerpts.
+      If the excerpts don't contain the answer, say so honestly instead of
+      guessing.
+    - If context_mode is "abstract_only": you only have the paper's abstract,
+      not the full text. Answer high-level questions the abstract actually
+      covers (main idea, motivation, general contribution). For any question
+      that needs details beyond the abstract (specific numbers, methodology
+      steps, experimental setup, related work, etc.), you MUST clearly say
+      you don't have the full text and can't answer that specific detail —
+      then suggest the user check the original paper link if one is given.
+      Never guess or fabricate details to fill this gap.
+    - Keep answers concise and conversational — a few sentences to a short
+      paragraph, unless the question genuinely needs more detail.
+    - Do not repeat the context back verbatim; synthesize it into a direct
+      answer.
+    - Format your response using light markdown where it improves
+      readability: use **bold** for key terms, and numbered or bulleted
+      lists when listing multiple points, steps, or comparisons, instead
+      of cramming them into one dense paragraph. Do not use markdown code
+      fences (```) or headings (#) — keep it conversational, not a
+      document.
+
+  user_template: |
+    Context mode: {context_mode}
+
+    Paper title: {paper_title}
+
+    Context:
+    {context}
+
+    User question:
+    {question}

@@ -3,7 +3,7 @@ app:
   environment: "production"
 
 search:
-  similarity_threshold: 0.50      # Minimum score match to consider a paper a "cache hit"
+  similarity_threshold: 0.72     # Minimum score match to consider a paper a "cache hit"
   default_max_results: 15         # Number of papers to retrieve
 
 api:
@@ -11,8 +11,20 @@ api:
     base_url: "http://export.arxiv.org/api/query"
     rate_limit_seconds: 3         # Wait time to respect arXiv's fair-use policy
 
+  semantic_scholar:
+    base_url: "https://api.semanticscholar.org/graph/v1"
+    rate_limit_seconds: 1         # Reduced wait time when using an API key (or 3 without key)
+
   gemini:
-      model_name: "gemini-2.5-flash"             # Placeholder for Gemini API key, dynamically loaded from .env
+    model_name: "gemini-2.5-flash"   # Used for query enhancement + paper analysis (text generation)
 
 embedding:
-  model_name: "all-MiniLM-L6-v2"  # Free, lightweight, local 384-dimension vector model
+  model_name: "gemini-embedding-001"  # Gemini embedding model
+
+rag:
+  pdf_fetch_timeout: 20
+  pdf_max_pages: 60
+  pdf_max_bytes: 26214400
+  chunk_size_words: 350
+  chunk_overlap_words: 60
+  chunk_collection_name: "paper_chunks"
