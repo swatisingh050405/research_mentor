@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { usePublicSearch } from "../context/PublicSearchContext";
-import { motion, AnimatePresence } from "framer-motion";
 import PaperCard from "../components/PaperCard";
 import SearchBar from "../components/SearchBar";
 import { startSearch, loadMoreResults } from "../services/api";
@@ -11,9 +10,6 @@ export default function HomePublic() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Search state lives in PublicSearchContext (above the routes), so it
-  // survives navigating to PaperDetail and back — only transient UI state
-  // (isLoading, loadingMore) stays local since those SHOULD reset.
   const {
     topic,
     setTopic,
@@ -36,7 +32,6 @@ export default function HomePublic() {
 
   const handlePublicSearch = async (e) => {
     e.preventDefault();
-
     if (!topic.trim()) return;
 
     setIsLoading(true);
@@ -48,7 +43,6 @@ export default function HomePublic() {
 
     try {
       const data = await startSearch(topic, description);
-
       setPapers(data.results || []);
       setSearchId(data.search_id);
       setHasMore(Boolean(data.has_more));
@@ -96,15 +90,15 @@ export default function HomePublic() {
   };
 
   return (
-    <div className="min-h-screen bg-[#FDFDFF] text-slate-800 font-interface relative overflow-x-hidden">
-      {/* 🌟 PREMIUM DETAILED STRUCTURAL VECTOR BACKGROUND */}
-      <div className="absolute top-0 inset-0 h-180 overflow-hidden pointer-events-none z-0">
-        <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[80%] bg-[var(--color-brand-primary)]/10 rounded-full blur-[130px]" />
-        <div className="absolute top-[5%] right-[-10%] w-[60%] h-[90%] bg-[var(--color-brand-accent)]/10 rounded-full blur-[140px]" />
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e8e3fa_1px,transparent_1px),linear-gradient(to_bottom,#e8e3fa_1px,transparent_1px)] bg-size-[40px_40px] opacity-40 mask-linear-[to_bottom,white_40%,transparent_95%]" />
+    <div className="min-h-screen w-full bg-[#FDFDFF] text-slate-800 font-interface relative overflow-x-hidden scroll-smooth transition-all duration-300">
+      {/* 🌟 FULL COVERAGE BACKGROUND (NO WHITE GAPS ON SCROLL) */}
+      <div className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden">
+        <div className="absolute top-[-5%] left-[-10%] w-[70vw] sm:w-[50vw] h-[50vh] bg-[var(--color-brand-primary)]/10 rounded-full blur-[100px] sm:blur-[130px]" />
+        <div className="absolute top-[10%] right-[-10%] w-[70vw] sm:w-[60vw] h-[60vh] bg-[var(--color-brand-accent)]/10 rounded-full blur-[110px] sm:blur-[140px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,#e8e3fa_1px,transparent_1px),linear-gradient(to_bottom,#e8e3fa_1px,transparent_1px)] bg-[size:24px_24px] sm:bg-[size:40px_40px] opacity-30 sm:opacity-40 [mask-image:linear-gradient(to_bottom,white_30%,transparent_95%)]" />
 
         <svg
-          className="absolute inset-0 w-full h-full opacity-60 text-[var(--color-brand-primary)]"
+          className="absolute top-0 left-0 w-full h-full opacity-40 sm:opacity-60 text-[var(--color-brand-primary)]"
           xmlns="http://www.w3.org/2000/svg"
         >
           <defs>
@@ -128,20 +122,6 @@ export default function HomePublic() {
             strokeWidth="0.75"
             className="opacity-30"
           />
-          <path
-            d="M 350,20 L 450,150 L 450,350 L 200,600"
-            fill="none"
-            stroke="#5B37F7"
-            strokeWidth="0.5"
-            className="opacity-20"
-          />
-          <path
-            d="M 850,50 L 950,200 L 800,450"
-            fill="none"
-            stroke="#5B37F7"
-            strokeWidth="0.5"
-            className="opacity-20"
-          />
           <circle
             cx="300"
             cy="120"
@@ -151,73 +131,37 @@ export default function HomePublic() {
           />
           <circle cx="450" cy="280" r="5" fill="#5B37F7" />
           <circle cx="900" cy="280" r="4" fill="#A855F7" />
-          <circle cx="1050" cy="140" r="5" fill="#8A22F9" />
-          <circle cx="500" cy="450" r="3.5" fill="#5A1FD4" />
-          <circle cx="680" cy="240" r="4.5" fill="#A855F7" />
-          <path
-            d="M 295,120 L 305,120 M 300,115 L 300,125"
-            stroke="currentColor"
-            strokeWidth="0.5"
-          />
-          <path
-            d="M 1045,140 L 1055,140 M 1050,135 L 1050,145"
-            stroke="currentColor"
-            strokeWidth="0.5"
-          />
         </svg>
-
-        <div className="absolute top-[18%] left-[12%] w-2 h-2 bg-[var(--color-brand-primary)]/40 rounded-full animate-ping" />
-        <div className="absolute top-[45%] right-[10%] w-3 h-3 bg-[var(--color-brand-accent)]/30 rounded-full animate-pulse" />
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 relative z-10">
-        <header className="flex justify-between items-center py-6 border-b border-purple-100/60 backdrop-blur-sm">
-          <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 bg-linear-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] rounded-xl flex items-center justify-center shadow-md shadow-purple-600/10">
-              <span className="font-black text-white text-base font-display">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 relative z-10">
+        {/* HEADER */}
+        <header className="flex justify-between items-center py-4 sm:py-6 border-b border-purple-100/60 backdrop-blur-xs">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] rounded-xl flex items-center justify-center shadow-md shadow-purple-600/10 shrink-0">
+              <span className="font-black text-white text-sm sm:text-base font-display">
                 R
               </span>
             </div>
-            <span className="text-lg font-black tracking-tight text-slate-900 font-display">
+            <span className="text-base sm:text-lg font-black tracking-tight text-slate-900 font-display">
               RESEARCH
               <span className="text-[var(--color-brand-primary)]">_MENTOR</span>
             </span>
           </div>
 
-          <nav className="hidden md:flex items-center gap-8 text-sm font-semibold text-slate-500">
-            <a
-              href="#features"
-              className="hover:text-[var(--color-brand-primary)] transition-colors"
-            >
-              Features
-            </a>
-            <a
-              href="#about"
-              className="hover:text-[var(--color-brand-primary)] transition-colors"
-            >
-              About System
-            </a>
-            <a
-              href="#docs"
-              className="hover:text-[var(--color-brand-primary)] transition-colors"
-            >
-              Docs
-            </a>
-          </nav>
-
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {user ? (
               <>
                 <button
                   onClick={() => navigate("/workspace")}
-                  className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                  className="text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-xs shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
                 >
                   Workspace
                 </button>
 
                 <button
                   onClick={() => navigate("/profile")}
-                  className="w-10 h-10 rounded-full bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white font-bold"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white font-bold text-xs sm:text-sm shrink-0"
                 >
                   {user.user_metadata?.full_name
                     ?.split(" ")
@@ -231,14 +175,14 @@ export default function HomePublic() {
               <>
                 <button
                   onClick={() => navigate("/login")}
-                  className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                  className="text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-xs shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
                 >
                   Sign In
                 </button>
 
                 <button
                   onClick={() => navigate("/signup")}
-                  className="text-sm font-semibold text-white bg-linear-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-5 py-2.5 rounded-xl shadow-sm shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
+                  className="text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-xs shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
                 >
                   Create Account
                 </button>
@@ -247,59 +191,62 @@ export default function HomePublic() {
           </div>
         </header>
 
-        <div className="flex flex-col items-center justify-center text-center pt-24 pb-12 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 bg-purple-50/90 border border-purple-100 px-3 py-1 rounded-full text-xs font-bold text-[var(--color-brand-primary)] mb-6 shadow-sm">
+        {/* HERO SECTION */}
+        <div className="flex flex-col items-center justify-center text-center pt-12 sm:pt-20 pb-8 sm:pb-12 max-w-3xl mx-auto px-2">
+          <div className="inline-flex items-center gap-2 bg-purple-50/90 border border-purple-100 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold text-[var(--color-brand-primary)] mb-4 sm:mb-6 shadow-xs">
             <span className="w-2 h-2 rounded-full bg-[var(--color-brand-primary)] animate-pulse" />
             AI Research Assistant Active
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-4 leading-tight font-display">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 tracking-tight mb-3 sm:mb-4 leading-tight font-display">
             Find Papers Faster <br />
-            <span className="bg-linear-to-r from-[var(--color-brand-primary)] via-[var(--color-brand-accent)] to-[var(--color-brand-primary)] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[var(--color-brand-primary)] via-[var(--color-brand-accent)] to-[var(--color-brand-primary)] bg-clip-text text-transparent">
               Understand Them Instantly
             </span>
           </h1>
 
-          <p className="text-slate-500 text-sm md:text-base max-w-xl mb-10 leading-relaxed font-medium">
+          <p className="text-slate-500 text-xs sm:text-sm md:text-base max-w-xl mb-6 sm:mb-10 leading-relaxed font-medium">
             Search, summarize, and organize research papers — with AI that
             actually understands what you're looking for.
           </p>
 
-          <SearchBar
-            topic={topic}
-            setTopic={setTopic}
-            description={description}
-            setDescription={setDescription}
-            onSubmit={handlePublicSearch}
-            isLoading={isLoading}
-            variant="public"
-          />
+          <div className="w-full">
+            <SearchBar
+              topic={topic}
+              setTopic={setTopic}
+              description={description}
+              setDescription={setDescription}
+              onSubmit={handlePublicSearch}
+              isLoading={isLoading}
+              variant="public"
+            />
+          </div>
         </div>
 
-        {/* Results Rendering Stream */}
+        {/* SEARCH RESULTS STREAM */}
         {searched && (
-          <section className="border-t border-purple-100/60 pt-10 pb-24">
+          <section className="border-t border-purple-100/60 pt-8 sm:pt-10 pb-16 sm:pb-24">
             {errorMessage && (
-              <div className="bg-red-50 border border-red-100 p-4 rounded-xl text-xs font-semibold text-red-600 max-w-xl mx-auto text-center shadow-sm">
+              <div className="bg-red-50 border border-red-100 p-3 sm:p-4 rounded-xl text-xs font-semibold text-red-600 max-w-xl mx-auto text-center shadow-xs mb-6">
                 ⚠️ {errorMessage}
               </div>
             )}
 
-            {/* Loading Grid */}
+            {/* Loading Skeleton */}
             {isLoading && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-6">
                 {[1, 2, 3, 4].map((n) => (
                   <div
                     key={n}
-                    className="h-64 bg-white border border-purple-100/60 p-6 rounded-2xl animate-pulse shadow-sm"
+                    className="h-56 sm:h-64 bg-white border border-purple-100/60 p-4 sm:p-6 rounded-2xl animate-pulse shadow-xs"
                   />
                 ))}
               </div>
             )}
 
-            {/* Live Data Mapping */}
+            {/* Results Mapping */}
             {!isLoading && papers.length > 0 && (
-              <div className="space-y-8">
+              <div className="space-y-6 sm:space-y-8">
                 {papers.map((paper, idx) => (
                   <PaperCard
                     key={paper.paper_id || idx}
@@ -310,13 +257,13 @@ export default function HomePublic() {
                   />
                 ))}
 
-                {/* Load More button */}
+                {/* Load More Button */}
                 {hasMore && (
                   <div className="flex justify-center pt-4">
                     <button
                       onClick={handleLoadMore}
                       disabled={loadingMore}
-                      className="inline-flex items-center gap-2 bg-white border border-purple-100 text-[var(--color-brand-primary)] font-bold text-sm px-6 py-3 rounded-xl shadow-sm hover:border-[var(--color-brand-primary)]/40 hover:shadow-md hover:shadow-purple-600/10 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                      className="inline-flex items-center gap-2 bg-white border border-purple-100 text-[var(--color-brand-primary)] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-xs hover:border-[var(--color-brand-primary)]/40 hover:shadow-md hover:shadow-purple-600/10 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {loadingMore ? (
                         <>
