@@ -2,6 +2,8 @@ import sys
 import os
 import logging
 from pathlib import Path
+import json
+from logging.handlers import RotatingFileHandler
 
 # Base logs directory
 LOGS_DIR = Path(__file__).resolve().parents[3] / "logs"
@@ -22,11 +24,13 @@ class ProductionFormatter(logging.Formatter):
         }
         if record.exc_info:
             log_obj["exception"] = self.formatException(record.exc_info)
-        return str(log_obj)
+
+        return json.dumps(log_obj)
 
 def setup_logger():
     logger = logging.getLogger("ResearchMentorAI")
     logger.setLevel(logging.INFO)
+    logger.propagate = False
     logger.handlers.clear()
 
     # Console Handler
@@ -42,7 +46,7 @@ def setup_logger():
     logger.addHandler(console_handler)
 
     # File Handler
-    file_handler = logging.FileHandler(LOGS_DIR / "app.log", encoding="utf-8")
+    file_handler = RotatingFileHandler(LOGS_DIR / "app.log", encoding="utf-8", maxBytes=1024*1024, backupCount=5)
     file_handler.setFormatter(logging.Formatter(
         "[%(asctime)s] [%(levelname)s] [%(module)s:%(lineno)d] - %(message)s"
     ))

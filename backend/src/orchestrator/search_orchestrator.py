@@ -27,9 +27,7 @@ class ResearchPlatformOrchestrator:
         self.arxiv_client = ArxivClient()
         self.llm_analyzer = PaperAnalyzer()
 
-        # VectorStoreManager owns its own PaperEmbedder instance internally;
-        # we reuse it (self.vector_store.embedder) rather than creating a
-        # second Gemini client for query embedding.
+      
         self.vector_store = VectorStoreManager()
 
         self.session_store = SearchSessionStore()
@@ -154,11 +152,7 @@ class ResearchPlatformOrchestrator:
         Summaries for external papers are intentionally NOT generated
         here. That happens lazily in _get_page_with_summaries.
 
-        NOTE: keyword_query is currently unused — external search now
-        uses raw_topic directly (see _collect_external_matches). Kept as
-        a parameter rather than removing it from the query_enhancer
-        pipeline, in case a future use case needs it again.
-        """
+         """
         embedder = self.vector_store.embedder
         query_vector = embedder.encode_text(embedder.construct_query_text(semantic_query))
 
@@ -234,7 +228,7 @@ class ResearchPlatformOrchestrator:
         to the user's full semantic intent before picking the top ones.
 
         """
-        over_fetch_count = min(needed * 2, 30)
+        over_fetch_count = min(needed * 3, 45)  # don't over-fetch too much, but enough to rerank
 
         logger.info(
             f"Fetching up to {over_fetch_count} candidates externally for query: '{raw_topic}'"
@@ -256,9 +250,7 @@ class ResearchPlatformOrchestrator:
         if not candidates:
             return []
 
-        # If we don't have a query vector to rerank against (embedding
-        # failed earlier), just take the external source's own order —
-        # degraded but not broken.
+        
         if query_vector is None:
             return self._candidates_to_entries(candidates[:needed], seen_ids)
 
@@ -340,18 +332,7 @@ class ResearchPlatformOrchestrator:
     # Lazy, per-page summarization
    
     def _get_page_with_summaries(self, pool: list, start: int, count: int) -> list:
-        """
-        Returns pool[start:start+count]. Generates summaries ONLY for
-        entries in this slice that don't already have one (cache-hit
-        entries already do). Newly generated summaries are written back
-        onto the pool in place, and newly-summarized external papers are
-        persisted into the vector store so future searches get them for
-        free from cache.
-
-        This is what correctly handles the "mixed page" case: e.g. if a
-        page of 5 has 3 cache-hit papers and 2 freshly-fetched ones, only
-        those 2 go into the LLM batch call — not all 5.
-        """
+       
         slice_ = pool[start:start + count]
 
         if not slice_:

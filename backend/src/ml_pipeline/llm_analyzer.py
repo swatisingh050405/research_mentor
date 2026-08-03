@@ -6,11 +6,6 @@ from backend.src.core.logger import logger
 from backend.src.core.config_loader import CONFIG, PROMPTS
 
 
-# Must exactly match the category list given to Gemini in the
-# query_enhancer prompt (prompts.yaml), which itself mirrors Semantic
-# Scholar's allowed fieldsOfStudy values. Kept here as the authoritative
-# code-side source of truth — Gemini's output is validated against this
-# set before it's trusted anywhere downstream.
 ALLOWED_FIELDS_OF_STUDY = {
     "Computer Science", "Medicine", "Chemistry", "Biology",
     "Materials Science", "Physics", "Geology", "Psychology", "Art",
@@ -39,30 +34,7 @@ class PaperAnalyzer:
     # Query enhancement
    
     def extract_search(self, topic: str, description: str = "") -> dict:
-        """
-        Turns a user's topic + optional description into search-ready
-        queries via Gemini.
-
-        Parameters
-        ----------
-        topic : str
-            The core subject the user wants to search for.
-        description : str, optional
-            Additional context: intent, constraints, or attributes the
-            user cares about. May be empty.
-
-        Returns
-        -------
-        dict
-            {
-                "topic": str,
-                "description": str,
-                "semantic_query": str,   # rich text for VDB embedding search
-                "keyword_query": str,    # concise phrase for external APIs
-                "field_of_study": str or None,  # validated category, or None
-                "used_gemini": bool
-            }
-        """
+        
         topic = topic.strip()
         description = (description or "").strip()
 
@@ -95,9 +67,7 @@ class PaperAnalyzer:
             keyword_query = parsed.get("keyword_query") or fallback_query
             field_of_study = parsed.get("field_of_study")
 
-            # Defense in depth: never trust the LLM's category choice blindly.
-            # If it doesn't exactly match our allowed list, drop it — search
-            # simply proceeds without that filter instead of breaking.
+           
             if field_of_study not in ALLOWED_FIELDS_OF_STUDY:
                 if field_of_study is not None:
                     logger.warning(
@@ -139,32 +109,7 @@ class PaperAnalyzer:
         paper_title: str = "",
         paper_url: str = "",
     ) -> dict:
-        """
-        Answers a user's question about a specific paper, grounded only in
-        the given context.
-
-        Parameters
-        ----------
-        question : str
-            The user's chat message.
-        context_chunks : list[str]
-            Retrieved text — either top-k full-text chunks (context_mode=
-            "full_text") or a single-item list containing the abstract
-            (context_mode="abstract_only").
-        context_mode : str
-            "full_text" or "abstract_only" — controls how confidently
-            Gemini is allowed to answer (see paper_chat prompt).
-        paper_title : str, optional
-            Used only to give Gemini orientation, not for retrieval.
-        paper_url : str, optional
-            Included in the fallback message if generation fails, so the
-            user has somewhere to go even when the assistant can't answer.
-
-        Returns
-        -------
-        dict
-            {"answer": str, "used_gemini": bool}
-        """
+        
         question = (question or "").strip()
 
         if not question:
@@ -200,13 +145,7 @@ class PaperAnalyzer:
             return {"answer": fallback, "used_gemini": False}
 
     def _generate_text_response(self, system_instruction: str, user_prompt: str) -> str:
-        """
-        Internal helper for plain-text (non-JSON) Gemini calls, used for
-        interactive chat. Uses fewer retries with shorter backoff than
-        _generate_json_response, since this runs while a user is actively
-        waiting for a reply — a 30+ second retry chain would feel broken
-        in a chat UI, whereas it's acceptable for background batch analysis.
-        """
+       
 
         retry_count = 3
         retry_delays = [1, 2, 4]
@@ -364,9 +303,7 @@ class PaperAnalyzer:
 
             analysis = json.loads(raw_text[start:end + 1])
 
-            # Guard against Gemini returning a different number of entries
-            # than papers sent — a silent length mismatch is what causes
-            # wrong pairing when zip()'d downstream. Pad/truncate to match.
+            
             if len(analysis) != len(papers):
                 logger.warning(
                     f"Gemini returned {len(analysis)} analyses for "

@@ -51,9 +51,7 @@ class SemanticScholarClient(BaseSearchClient):
         self.timeout = int(CONFIG.get("search", {}).get("network_timeout", 15))
         self.api_key = ss_config.get("api_key", "")
 
-        # NOTE: openAccessPdf and isOpenAccess must be explicitly requested,
-        # they are NOT returned by default. Without them, pdf_url will
-        # always be missing for Semantic Scholar results.
+       
 
         self.fields = (
             "title,abstract,authors,year,url,externalIds,paperId,"
@@ -67,30 +65,7 @@ class SemanticScholarClient(BaseSearchClient):
         offset: int = 0,
         field_of_study: str = None,
     ) -> list:
-        """
-        Executes a Semantic Scholar search request.
-
-        Parameters
-        ----------
-        query : str
-            Search query.
-        limit : int
-            Number of papers required.
-        offset : int
-            Pagination offset.
-        field_of_study : str, optional
-            A single high-level academic category (e.g. "Computer Science")
-            used to narrow results via Semantic Scholar's fieldsOfStudy
-            filter. Callers are responsible for validating this value
-            against Semantic Scholar's allowed category list before
-            passing it in — this method trusts its input and simply
-            omits the filter if the value is falsy.
-
-        Returns
-        -------
-        list
-            Normalized paper list. Empty list on any failure.
-        """
+        
         query = query.strip()
         if not query:
             return []
@@ -143,8 +118,6 @@ class SemanticScholarClient(BaseSearchClient):
         )
         paper_id = item.get("externalIds", {}).get("ArXiv") or item.get("paperId")
 
-        # openAccessPdf is a dict like {"url": "...", "status": "..."} or None
-        # if the paper has no open-access full text available.
         pdf_info = item.get("openAccessPdf") or {}
         pdf_url = pdf_info.get("url")
 
@@ -163,16 +136,6 @@ class SemanticScholarClient(BaseSearchClient):
 # arXiv Client
 
 class ArxivClient(BaseSearchClient):
-    """
-    Fallback academic search provider.
-
-    Invoked only when Semantic Scholar is unavailable or returns
-    insufficient results.
-
-    Unlike Semantic Scholar, every arXiv paper is open access, so the
-    PDF URL can always be derived directly from the paper ID — no extra
-    field request or availability check is needed.
-    """
 
     _last_request_time = 0.0
 
@@ -202,29 +165,7 @@ class ArxivClient(BaseSearchClient):
         offset: int = 0,
         field_of_study: str = None,
     ) -> list:
-        """
-        Executes an arXiv search request, retrying on HTTP errors.
-
-        Parameters
-        ----------
-        query : str
-            Search query.
-        limit : int
-            Number of papers required.
-        offset : int
-            Pagination offset.
-        field_of_study : str, optional
-            Accepted only for interface consistency with
-            SemanticScholarClient.fetch_papers — arXiv uses its own
-            category system (e.g. cs.CL, math.PR) which does not map
-            cleanly onto Semantic Scholar's fieldsOfStudy categories,
-            so this value is currently ignored here.
-
-        Returns
-        -------
-        list
-            Normalized paper list. Empty list on any failure.
-        """
+       
         query = query.strip()
         if not query:
             logger.warning("arXiv search skipped because query is empty.")
@@ -324,8 +265,7 @@ class ArxivClient(BaseSearchClient):
             if author.find("atom:name", namespace) is not None
         )
 
-        # Every arXiv paper is open access — the PDF always lives at this
-        # predictable URL pattern, derived straight from the paper ID.
+        
         
         pdf_url = f"https://arxiv.org/pdf/{paper_id}" if paper_id else None
 

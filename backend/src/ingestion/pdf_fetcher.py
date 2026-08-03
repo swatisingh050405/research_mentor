@@ -8,16 +8,7 @@ from backend.src.core.config_loader import CONFIG
 
 
 class PDFFetcher:
-    """
-    Downloads a paper's PDF (from its pdf_url) and extracts plain text
-    from it, for use by the RAG chunking pipeline.
-
-    Not every paper has a usable pdf_url (Semantic Scholar papers may be
-    closed-access, and some links may be dead or blocked). This class
-    NEVER raises for those cases — it returns None, and callers (the
-    chat orchestrator) are expected to fall back to abstract-only chat
-    mode rather than treating this as a fatal error.
-    """
+   
 
     def __init__(self):
         self.timeout = int(CONFIG.get("rag", {}).get("pdf_fetch_timeout", 20))
@@ -57,9 +48,7 @@ class PDFFetcher:
                     logger.warning(
                         f"URL does not look like a PDF (Content-Type: '{content_type}'): {pdf_url}"
                     )
-                    # Don't hard-fail here — some servers mislabel content-type.
-                    # We still try to parse it below; fitz will reject it if it
-                    # genuinely isn't a valid PDF.
+                    
 
                 data = response.read(self.max_bytes + 1)
 
@@ -86,6 +75,7 @@ class PDFFetcher:
 
     
     # Text extraction
+
    
     def _extract_text_from_bytes(self, raw_bytes: bytes, source: str) -> str | None:
         """Parses PDF bytes with PyMuPDF and concatenates text across pages."""
@@ -98,8 +88,7 @@ class PDFFetcher:
 
         try:
             if document.is_encrypted:
-                # Try an empty-password unlock (common for "owner-locked but
-                # readable" PDFs); if that fails, treat as unavailable.
+               
                 if not document.authenticate(""):
                     logger.warning(f"PDF is encrypted and could not be opened: {source}")
                     document.close()

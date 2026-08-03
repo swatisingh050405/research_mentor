@@ -3,15 +3,7 @@ from backend.src.core.config_loader import CONFIG
 
 
 class TextChunker:
-    """
-    Splits a large text (e.g. full paper text extracted from a PDF) into
-    smaller, overlapping chunks suitable for embedding and retrieval.
-
-    Uses word-based sliding-window chunking: simple, dependency-free, and
-    good enough for RAG retrieval on plain academic text. Chunk boundaries
-    don't need to be semantically "perfect" — the overlap ensures an idea
-    split across a boundary still appears intact in at least one chunk.
-    """
+    
 
     def __init__(self):
         self.chunk_size = int(CONFIG.get("rag", {}).get("chunk_size_words", 350))
@@ -26,30 +18,7 @@ class TextChunker:
             self.chunk_overlap = max(0, self.chunk_size // 4)
 
     def chunk_text(self, text: str, paper_id: str) -> list:
-        """
-        Splits `text` into overlapping word-based chunks.
-
-        Parameters
-        ----------
-        text : str
-            The full extracted paper text.
-        paper_id : str
-            Used to build stable, unique chunk ids.
-
-        Returns
-        -------
-        list[dict]
-            [
-                {
-                    "chunk_id": "<paper_id>_chunk_0",
-                    "paper_id": "<paper_id>",
-                    "chunk_index": 0,
-                    "text": "...",
-                },
-                ...
-            ]
-            Empty list if the input text is empty.
-        """
+       
         text = (text or "").strip()
 
         if not text:

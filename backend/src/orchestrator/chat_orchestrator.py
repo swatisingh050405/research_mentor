@@ -11,20 +11,7 @@ TOP_K_CHUNKS = 5
 
 
 class ChatOrchestrator:
-    """
-    Coordinates the "chat with paper" (RAG) flow:
-
-    1. Lazily ensures a paper's full text is fetched, chunked, and embedded
-       (only on first chat interaction for that paper — see prepare_chat).
-    2. Retrieves the most relevant chunks for a given question (scoped to
-       that one paper).
-    3. Asks Gemini to answer, grounded in that retrieved context.
-
-    Falls back gracefully to abstract-only answering when no PDF is
-    available or extraction fails, per the "graceful degradation" design —
-    chat is never simply disabled, it just answers with reduced confidence
-    and says so honestly.
-    """
+   
 
     def __init__(self):
         logger.info("Initializing Chat Orchestrator...")
@@ -34,16 +21,10 @@ class ChatOrchestrator:
         self.chunk_store = ChunkStoreManager()
         self.llm_analyzer = PaperAnalyzer()
  
-        # Reused for paper metadata lookups (title, abstract, pdf_url, url).
-        # Chat operates on papers that were already found via search, so
-        # they're expected to already exist in this collection.
+        
         self.paper_store = VectorStoreManager()
 
-        # In-process memory of papers whose PDF extraction already failed
-        # this server run, so we don't re-attempt a download on every
-        # single chat message for the same paper. Not persisted — resets
-        # on restart, which is fine (a paper might become available later,
-        # e.g. if a dead link gets fixed upstream).
+        
 
         self._known_abstract_only = set()
         self._lock = Lock()
@@ -53,21 +34,7 @@ class ChatOrchestrator:
     # Public API
   
     def prepare_chat(self, paper_id: str) -> dict:
-        """
-        Ensures this paper is ready for chat: fetches + chunks + embeds
-        the PDF if this is the first time chat has been opened for it.
-        Safe to call multiple times — it's a no-op if chunks already
-        exist or if we already know this paper has no usable PDF.
-
-        Intended to be called when the user opens the chat panel (before
-        they've typed a question), so the frontend can show a distinct
-        "Preparing this paper for chat..." loading state.
-
-        Returns
-        -------
-        dict
-            {"context_mode": "full_text" | "abstract_only", "paper_found": bool}
-        """
+       
         paper = self._get_paper_metadata(paper_id)
 
         if paper is None:
@@ -77,19 +44,7 @@ class ChatOrchestrator:
         return {"context_mode": context_mode, "paper_found": True}
 
     def ask(self, paper_id: str, question: str) -> dict:
-        """
-        Answers a user's question about a specific paper.
-
-        Returns
-        -------
-        dict
-            {
-                "answer": str,
-                "context_mode": "full_text" | "abstract_only" | None,
-                "used_gemini": bool,
-                "paper_found": bool,
-            }
-        """
+        
         question = (question or "").strip()
 
         if not question:
@@ -151,17 +106,7 @@ class ChatOrchestrator:
     # Internal: lazy PDF -> chunk -> embed pipeline
    
     def _ensure_chunks_ready(self, paper_id: str, pdf_url: str) -> str:
-        """
-        Ensures chunks exist for this paper if a usable PDF is available.
-        Only does real work the FIRST time this is called for a given
-        paper — subsequent calls are cheap existence checks.
-
-        Returns
-        -------
-        str
-            "full_text" if chunks are available to search, "abstract_only"
-            if no PDF was available or extraction/storage failed.
-        """
+       
         with self._lock:
             already_known_abstract_only = paper_id in self._known_abstract_only
 
@@ -192,9 +137,9 @@ class ChatOrchestrator:
 
         return "full_text"
 
-    # ------------------------------------------------------------------
+   
     # Internal: context retrieval for a question
-    # ------------------------------------------------------------------
+    
     def _retrieve_context(self, paper_id: str, question: str, context_mode: str, abstract: str) -> list:
         """Returns the text context to answer from, based on the current context_mode."""
         if context_mode == "abstract_only":

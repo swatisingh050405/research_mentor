@@ -36,7 +36,9 @@ class SearchSessionStore:
         )
 
     def create(self, pool: list, query_meta: dict) -> str:
+
         """Stores a new pool and returns its search_id."""
+        
         search_id = str(uuid.uuid4())
 
         with self._lock:
@@ -65,7 +67,9 @@ class SearchSessionStore:
         return session["pool"]
 
     def get_query_meta(self, search_id: str):
+
         """Returns the original query metadata (topic, description, queries) for a session."""
+
         with self._lock:
             session = self._cache.get(search_id)
 

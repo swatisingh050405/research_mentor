@@ -36,9 +36,8 @@ class ChunkStoreManager:
             logger.exception(f"Failed to initialize ChunkStoreManager: {e}")
             raise
 
-    # ------------------------------------------------------------------
     # Existence check — this is what avoids re-processing the same paper
-    # ------------------------------------------------------------------
+    
     def has_chunks(self, paper_id: str) -> bool:
         """Checks whether chunks for this paper are already stored."""
         try:

@@ -1,31 +1,14 @@
 import json
-
 import chromadb
-
 from backend.src.core.logger import logger
 from backend.src.core.config_loader import CONFIG, CHROMA_DB_PATH
 from backend.src.ml_pipeline.embedder import PaperEmbedder
 
 
 class VectorStoreManager:
-    """
-    Persistent Vector Storage Layer — the SOLE owner of ChromaDB access
-    for paper-level (title+abstract) search.
-
-    Responsibilities:
-    -----------------
-    - Generate document embeddings via PaperEmbedder (text -> vector).
-    - Persist embeddings + normalized metadata into ChromaDB.
-    - Run similarity queries against the collection.
-
-    No other module should talk to ChromaDB directly for paper search —
-    keeping all reads/writes here means there is exactly one place that
-    understands the collection's schema (metadata keys, id scheme, etc).
-    """
 
     def __init__(self):
         """Initializes the persistent ChromaDB client, collection, and embedder."""
-
         self.collection_name = (
             CONFIG.get("database", {}).get("collection_name", "academic_papers")
         )
@@ -50,48 +33,151 @@ class VectorStoreManager:
             logger.exception(f"Failed to initialize VectorStoreManager: {e}")
             raise
 
-    # Storage
    
+    # Standardized Helpers (DRY & Robust Validation)
+    
+    def _build_metadata_and_record(self, paper: dict, analysis: dict) -> tuple[dict, dict]:
+        """Constructs standardized Chroma metadata and frontend response record from new inputs."""
+        raw_id = paper.get("paper_id") or paper.get("id")
+        if not raw_id:
+            raise ValueError("Cannot build metadata for a paper with a missing or null ID.")
+        
+        p_id = str(raw_id)
+        authors = paper.get("authors", "")
+        if isinstance(authors, list):
+            authors = ", ".join(authors)
+
+        metadata = {
+            "title": paper.get("title", "Unknown"),
+            "authors": str(authors),
+            "year": str(paper.get("year", "Unknown")),
+            "url": paper.get("url", ""),
+            "pdf_url": paper.get("pdf_url") or "",
+            "abstract": paper.get("abstract", ""),
+            "summary": analysis.get("summary", ""),
+            "keywords": json.dumps(analysis.get("keywords", [])),
+            "difficulty_level": analysis.get("difficulty_level", "Intermediate"),
+            "source": paper.get("source", "unknown"),
+        }
+
+        record = self._build_record_from_metadata(metadata, p_id)
+        return metadata, record
+
+    def _build_record_from_metadata(self, meta: dict, p_id: str) -> dict:
+        """Reconstructs standard frontend record directly from stored ChromaDB metadata dictionary."""
+        if not p_id:
+            raise ValueError("Cannot construct record without a valid paper ID.")
+
+        keywords_data = meta.get("keywords", "[]")
+        if isinstance(keywords_data, str):
+            try:
+                parsed_keywords = json.loads(keywords_data)
+            except Exception:
+                parsed_keywords = []
+        else:
+            parsed_keywords = keywords_data
+
+        return {
+            "id": p_id,
+            "title": meta.get("title", "Unknown"),
+            "authors": meta.get("authors", ""),
+            "year": meta.get("year", "Unknown"),
+            "url": meta.get("url", ""),
+            "pdf_url": meta.get("pdf_url", ""),
+            "abstract": meta.get("abstract", ""),
+            "summary": meta.get("summary", ""),
+            "keywords": parsed_keywords,
+            "difficulty_level": meta.get("difficulty_level", "Intermediate"),
+            "source_type": meta.get("source", "unknown"),
+        }
+
+   
+    # Optimized Storage & Pre-Gemini Filtering Architecture
+    
+    def filter_existing_papers(self, papers: list) -> tuple[list, list]:
+        """
+        Filters out papers that already exist in ChromaDB in a SINGLE database query
+        before running expensive Gemini summaries.
+        
+        Returns:
+            (new_papers_to_process, already_cached_enriched_records)
+        """
+        if not papers:
+            return [], []
+
+        valid_papers = []
+        raw_ids = []
+
+        # Strict upfront ID validation
+        for paper in papers:
+            p_id = paper.get("paper_id") or paper.get("id")
+            if not p_id:
+                title_preview = paper.get("title", "Unknown")[:30]
+                logger.warning(f"Paper skipped due to missing ID. Title: '{title_preview}...'")
+                continue
+            raw_ids.append(str(p_id))
+            valid_papers.append(paper)
+
+        if not raw_ids:
+            return [], []
+
+        try:
+            # Single batch query fetching all relevant metadata upfront (No N+1 queries)
+            existing_db_records = self.collection.get(ids=raw_ids, include=["metadatas"])
+            
+            existing_ids = existing_db_records.get("ids", []) if existing_db_records else []
+            existing_metas = existing_db_records.get("metadatas", []) if existing_db_records else []
+
+            # Hashmap lookup for O(1) in-memory record building
+            existing_meta_map = {
+                pid: meta for pid, meta in zip(existing_ids, existing_metas) if meta
+            }
+
+            new_papers = []
+            cached_records = []
+
+            for paper in valid_papers:
+                p_id = str(paper.get("paper_id") or paper.get("id"))
+                if p_id in existing_meta_map:
+                    # Construct record in-memory via helper
+                    meta = existing_meta_map[p_id]
+                    cached_record = self._build_record_from_metadata(meta, p_id)
+                    cached_records.append(cached_record)
+                else:
+                    new_papers.append(paper)
+
+            logger.info(
+                f"Pre-Gemini Filter: {len(new_papers)} new papers to summarize/embed, "
+                f"{len(cached_records)} existing papers served directly from cache."
+            )
+            return new_papers, cached_records
+
+        except Exception as e:
+            logger.exception(f"Failed during pre-filtering existing papers: {e}")
+            # Safe Fallback: Process all valid papers as new if query fails
+            return valid_papers, []
+
     def upsert_papers(self, papers: list, ai_analysis: list) -> list:
         """
-        Embeds and stores papers, merged with their AI-generated analysis.
-
-        Parameters
-        ----------
-        papers : list
-            Normalized paper dicts from fetch_paper.py (must include at
-            least paper_id, title, abstract, authors, year, url, pdf_url,
-            source).
-        ai_analysis : list
-            Per-paper analysis dicts (same length/order as `papers`),
-            each containing summary, keywords, difficulty_level — as
-            produced by PaperAnalyzer.analyze_papers_batch.
-
-        Returns
-        -------
-        list
-            The enriched paper records that were actually stored (papers
-            whose embedding failed are skipped and excluded here).
+        Receives ONLY newly generated papers and their summaries, 
+        performs native batch embedding, and upserts them into ChromaDB.
         """
-
-        if not papers:
-            logger.warning("VectorStore received an empty paper list. Skipping storage.")
+        if not papers or not ai_analysis:
             return []
 
         if len(papers) != len(ai_analysis):
             logger.warning(
                 f"Paper count ({len(papers)}) does not match analysis count "
-                f"({len(ai_analysis)}). Truncating to the shorter length to "
-                f"avoid mismatched pairing."
+                f"({len(ai_analysis)}). Truncating to shorter length."
             )
-
-        pair_count = min(len(papers), len(ai_analysis))
-        papers = papers[:pair_count]
-        ai_analysis = ai_analysis[:pair_count]
+            pair_count = min(len(papers), len(ai_analysis))
+            papers = papers[:pair_count]
+            ai_analysis = ai_analysis[:pair_count]
 
         try:
-            logger.info(f"Preparing {len(papers)} papers for vectorization.")
+            logger.info(f"Preparing {len(papers)} newly analyzed papers for batch embedding.")
 
+            # Step 1: Build embedding documents text representation
             documents = [
                 self.embedder.construct_embedding_text(
                     paper.get("title", ""), paper.get("abstract", "")
@@ -99,59 +185,35 @@ class VectorStoreManager:
                 for paper in papers
             ]
 
+            # Step 2: Native batch embedding call via Gemini API
             embeddings, successful_indices = self.embedder.encode_batch(documents)
 
             if not successful_indices:
-                logger.error("No embeddings were successfully generated. Aborting upsert.")
+                logger.error("Embedding generation failed entirely for new batch.")
                 return []
 
-            # Keep only the papers/analysis/documents whose embedding succeeded,
-            # so everything stays aligned by position.
+            if len(successful_indices) < len(papers):
+                logger.warning(
+                    f"Partial embedding failure: {len(papers) - len(successful_indices)} papers dropped."
+                )
+
+            # Keep aligned list elements
             papers = [papers[i] for i in successful_indices]
             ai_analysis = [ai_analysis[i] for i in successful_indices]
             documents = [documents[i] for i in successful_indices]
 
-            ids = [str(paper.get("paper_id") or paper.get("id")) for paper in papers]
-
+            ids = []
             metadatas = []
             enriched_records = []
 
             for paper, analysis in zip(papers, ai_analysis):
-
-                authors = paper.get("authors", "")
-                if isinstance(authors, list):
-                    authors = ", ".join(authors)
-
-                metadata = {
-                    "title": paper.get("title", "Unknown"),
-                    "authors": str(authors),
-                    "year": str(paper.get("year", "Unknown")),
-                    "url": paper.get("url", ""),
-                    "pdf_url": paper.get("pdf_url") or "",
-                    "abstract": paper.get("abstract", ""),
-                    "summary": analysis.get("summary", ""),
-                    "keywords": json.dumps(analysis.get("keywords", [])),
-                    "difficulty_level": analysis.get("difficulty_level", "Intermediate"),
-                    "source": paper.get("source", "unknown"),
-                }
+                metadata, record = self._build_metadata_and_record(paper, analysis)
+                ids.append(record["id"])
                 metadatas.append(metadata)
+                enriched_records.append(record)
 
-                enriched_records.append({
-                    "id": paper.get("paper_id") or paper.get("id"),
-                    "title": metadata["title"],
-                    "authors": metadata["authors"],
-                    "year": metadata["year"],
-                    "url": metadata["url"],
-                    "pdf_url": metadata["pdf_url"],
-                    "abstract": metadata["abstract"],
-                    "summary": metadata["summary"],
-                    "keywords": analysis.get("keywords", []),
-                    "difficulty_level": metadata["difficulty_level"],
-                    "source_type": metadata["source"],
-                })
-
-            logger.info(f"Upserting {len(ids)} vectors into ChromaDB...")
-
+            # Step 3: Pure insert/upsert for brand new papers
+            logger.info(f"Upserting {len(ids)} new vector records into ChromaDB...")
             self.collection.upsert(
                 ids=ids,
                 embeddings=embeddings.tolist(),
@@ -159,40 +221,19 @@ class VectorStoreManager:
                 metadatas=metadatas,
             )
 
-            logger.info("Database synchronization completed successfully.")
-            logger.info(f"Current collection size: {self.collection.count()} documents.")
-
+            logger.info(f"Database sync complete. Total collection size: {self.collection.count()}")
             return enriched_records
 
         except Exception as e:
             logger.exception(f"Vector database upsert operation failed: {e}")
             raise
 
-
-    # Search
-  
+    
+    # Query & Retrieval Utilities
+    
     def query_similar(self, query_vector, n_results: int = 10):
-        """
-        Runs a similarity search against the collection.
-
-        Parameters
-        ----------
-        query_vector : np.ndarray or list
-            The embedding vector to search with.
-        n_results : int
-            Max number of results to retrieve.
-
-        Returns
-        -------
-        dict or None
-            Raw ChromaDB query result (ids, documents, metadatas, distances),
-            or None if the query fails or the collection is empty. Callers
-            are responsible for applying similarity thresholds, sorting,
-            and pagination — this method only fetches.
-        """
         try:
             db_count = self.collection.count()
-
             if db_count == 0:
                 logger.info("Vector collection is empty — skipping similarity query.")
                 return None
@@ -208,7 +249,6 @@ class VectorStoreManager:
                 n_results=min(db_count, n_results),
                 include=["documents", "metadatas", "distances"],
             )
-
             return results
 
         except Exception as e:
@@ -216,40 +256,27 @@ class VectorStoreManager:
             return None
 
     def get_by_id(self, paper_id: str):
-        """
-        Fetches a single stored paper (with its embedding) by id.
-
-        Returns
-        -------
-        dict or None
-            Raw ChromaDB get() result, or None if not found / on failure.
-        """
         try:
             result = self.collection.get(
                 ids=[paper_id],
                 include=["documents", "metadatas", "embeddings"],
             )
-
-            if not result["ids"]:
+            if not result.get("ids"):
                 return None
-
             return result
-
         except Exception as e:
             logger.exception(f"Failed to fetch paper '{paper_id}' by id: {e}")
             return None
 
     def exists(self, paper_id: str) -> bool:
-        """Checks whether a paper_id is already stored, without fetching full data."""
         try:
-            result = self.collection.get(ids=[paper_id])
-            return bool(result["ids"])
+            result = self.collection.get(ids=[paper_id], include=[])
+            return bool(result.get("ids"))
         except Exception as e:
             logger.exception(f"Failed to check existence of paper '{paper_id}': {e}")
             return False
 
     def get_collection_size(self) -> int:
-        """Returns the current number of indexed documents."""
         try:
             return self.collection.count()
         except Exception as e:

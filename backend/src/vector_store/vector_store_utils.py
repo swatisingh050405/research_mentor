@@ -1,5 +1,6 @@
 import chromadb
 from backend.src.core.config_loader import CHROMA_DB_PATH
+from backend.src.core.config_loader import CONFIG
 from backend.src.core.logger import logger
 
 def get_chroma_client():
@@ -25,7 +26,9 @@ def clear_pdf_chunks_only():
     """
     client = get_chroma_client()
     try:
-        client.delete_collection(name="paper_chunks")
+        chunk_collection = CONFIG["rag"]["chunk_collection_name"]
+
+        client.delete_collection(name=chunk_collection)
         logger.info("Cleared PDF chunks collection to free disk space. Main paper cache remains active.")
     except Exception as e:
         logger.error(f"Failed to clear paper_chunks: {e}")

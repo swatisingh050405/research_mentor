@@ -8,99 +8,198 @@ from backend.src.core.config_loader import CONFIG
 
 class PaperEmbedder:
     """
-    Pure text -> vector conversion layer using Gemini's embedding model.
+    Converts text into vector embeddings using Gemini Embedding API.
 
+    Supports:
+    - Native batch embedding
+    - Retry with exponential backoff
+    - Automatic chunking
+    - Individual fallback
     """
 
     def __init__(self):
-        """Initializes the Gemini Embedding client."""
-
         api_key = CONFIG["api"]["gemini"]["api_key"]
 
         self.client = genai.Client(api_key=api_key)
 
-        self.model_name = CONFIG.get("embedding", {}).get(
-            "model_name", "gemini-embedding-001"
+        self.model_name = CONFIG.get(
+            "embedding", {}
+        ).get(
+            "model_name",
+            "gemini-embedding-001"
         )
 
-        # Embedding calls run at much higher volume now (reranking fetches
-        # many candidate papers per search), so retries matter here too —
-        # a single transient failure shouldn't need to bubble all the way
-        # up and fail the whole batch.
+        self.max_batch_size = int(
+            CONFIG.get("embedding", {}).get("batch_size", 16)
+        )
+
         self.max_retry = 3
         self.retry_delays = [1, 2, 4]
 
-        logger.info(f"Gemini Embedding model initialized: {self.model_name}")
+        logger.info(
+            f"Gemini Embedding initialized "
+            f"(model={self.model_name}, batch_size={self.max_batch_size})"
+        )
 
     def construct_embedding_text(self, title: str, abstract: str) -> str:
-        """Builds the canonical text representation of a paper for embedding."""
         return f"{title}\n\n{abstract}"
 
     def construct_query_text(self, query: str) -> str:
-        """Builds the canonical text representation of a search query for embedding."""
         return query.strip()
 
     def encode_text(self, text: str):
         """
-        Generates an embedding for a single piece of text, with retries
-        on transient failures.
-
-        Returns
-        -------
-        np.ndarray or None
-            The embedding vector, or None if the text is empty or all
-            retry attempts fail.
+        Generate embedding for one text.
         """
-        if not text:
+
+        if not text or not text.strip():
             return None
 
         for attempt in range(self.max_retry):
+
             try:
                 response = self.client.models.embed_content(
                     model=self.model_name,
                     contents=text,
                 )
+
                 return np.array(response.embeddings[0].values)
 
             except Exception as e:
+
                 if attempt < self.max_retry - 1:
+
                     wait = self.retry_delays[attempt]
+
                     logger.warning(
-                        f"Gemini embedding failed (single text). "
-                        f"Retry {attempt + 1}/{self.max_retry} in {wait}s. Error: {e}"
+                        f"Single embedding failed "
+                        f"(Retry {attempt+1}/{self.max_retry}) "
+                        f"Waiting {wait}s. Error: {e}"
                     )
+
                     time.sleep(wait)
+
                 else:
-                    logger.error(f"Gemini embedding failed for single text after retries: {e}")
+
+                    logger.error(
+                        f"Single embedding failed after retries: {e}"
+                    )
+
                     return None
 
-    def encode_batch(self, texts: list):
+    def encode_batch(
+        self,
+        texts: list[str],
+    ) -> tuple[np.ndarray, list[int]]:
         """
-        Generates embeddings for multiple texts, retrying each one
-        individually on transient failures.
+        Generate embeddings using Gemini's native batch API.
 
         Returns
         -------
-        tuple(np.ndarray, list[int])
-            The stacked embeddings, and the list of original indices
-            (into `texts`) that were successfully embedded, in order.
+        (embeddings, successful_indices)
         """
-        embeddings = []
+
+        if not texts:
+            return np.array([]), []
+
+        valid_inputs = [
+            (idx, text)
+            for idx, text in enumerate(texts)
+            if text and text.strip()
+        ]
+
+        if not valid_inputs:
+            logger.warning("No valid texts supplied for embedding.")
+            return np.array([]), []
+
+        all_embeddings = []
         successful_indices = []
 
-        for index, text in enumerate(texts):
+        for start in range(0, len(valid_inputs), self.max_batch_size):
 
-            if not text:
-                logger.warning(f"Skipping empty text at index {index} in batch.")
-                continue
+            chunk = valid_inputs[start:start + self.max_batch_size]
 
-            vector = self.encode_text(text)
+            chunk_indices = [idx for idx, _ in chunk]
+            chunk_texts = [text for _, text in chunk]
 
-            if vector is None:
-                logger.error(f"Embedding failed for batch item {index} after retries. Skipping.")
-                continue
+            success = False
 
-            embeddings.append(vector)
-            successful_indices.append(index)
+            for attempt in range(self.max_retry):
 
-        return np.array(embeddings), successful_indices
+                try:
+
+                    response = self.client.models.embed_content(
+                        model=self.model_name,
+                        contents=chunk_texts,
+                    )
+
+                    if len(response.embeddings) != len(chunk_texts):
+                        raise ValueError(
+                            f"Expected {len(chunk_texts)} embeddings "
+                            f"but received {len(response.embeddings)}."
+                        )
+
+                    vectors = [
+                        np.array(item.values)
+                        for item in response.embeddings
+                    ]
+
+                    all_embeddings.extend(vectors)
+                    successful_indices.extend(chunk_indices)
+
+                    logger.info(
+                        f"Embedded {len(vectors)} papers "
+                        f"in one Gemini batch request."
+                    )
+
+                    success = True
+                    break
+
+                except Exception as e:
+
+                    if attempt < self.max_retry - 1:
+
+                        wait = self.retry_delays[attempt]
+
+                        logger.warning(
+                            f"Batch embedding failed "
+                            f"(Retry {attempt+1}/{self.max_retry}) "
+                            f"Waiting {wait}s. Error: {e}"
+                        )
+
+                        time.sleep(wait)
+
+                    else:
+
+                        logger.error(
+                            f"Batch embedding failed after retries: {e}"
+                        )
+
+            if not success:
+
+                logger.info(
+                    "Falling back to individual embedding."
+                )
+
+                for idx, text in chunk:
+
+                    vector = self.encode_text(text)
+
+                    if vector is not None:
+                        all_embeddings.append(vector)
+                        successful_indices.append(idx)
+
+        if not all_embeddings:
+
+            logger.warning(
+                "No embeddings generated."
+            )
+
+            return np.array([]), []
+
+        logger.info(
+            f"Embedding complete. "
+            f"Generated {len(all_embeddings)} embeddings."
+        )
+
+        return np.array(all_embeddings), successful_indices
