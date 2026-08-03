@@ -1,5 +1,6 @@
 import json
 import chromadb
+from chromadb.config import Settings
 from backend.src.core.logger import logger
 from backend.src.core.config_loader import CONFIG, CHROMA_DB_PATH
 from backend.src.ml_pipeline.embedder import PaperEmbedder
@@ -16,7 +17,15 @@ class VectorStoreManager:
         try:
             logger.info(f"Connecting to persistent ChromaDB at: {CHROMA_DB_PATH}")
 
-            self.chroma_client = chromadb.PersistentClient(path=str(CHROMA_DB_PATH))
+            # Explicit persistent settings for ChromaDB
+            self.chroma_client = chromadb.PersistentClient(
+                path=str(CHROMA_DB_PATH),
+                settings=Settings(
+                    allow_reset=True,
+                    anonymized_telemetry=False,
+                    is_persistent=True,
+                ),
+            )
 
             self.collection = self.chroma_client.get_or_create_collection(
                 name=self.collection_name,
@@ -33,9 +42,10 @@ class VectorStoreManager:
             logger.exception(f"Failed to initialize VectorStoreManager: {e}")
             raise
 
-   
-    # Standardized Helpers (DRY & Robust Validation)
     
+    # Standardized Helpers (DRY & Robust Validation)
+   
+
     def _build_metadata_and_record(self, paper: dict, analysis: dict) -> tuple[dict, dict]:
         """Constructs standardized Chroma metadata and frontend response record from new inputs."""
         raw_id = paper.get("paper_id") or paper.get("id")
@@ -91,9 +101,10 @@ class VectorStoreManager:
             "source_type": meta.get("source", "unknown"),
         }
 
-   
+    
     # Optimized Storage & Pre-Gemini Filtering Architecture
     
+
     def filter_existing_papers(self, papers: list) -> tuple[list, list]:
         """
         Filters out papers that already exist in ChromaDB in a SINGLE database query
@@ -230,7 +241,8 @@ class VectorStoreManager:
 
     
     # Query & Retrieval Utilities
-    
+   
+
     def query_similar(self, query_vector, n_results: int = 10):
         try:
             db_count = self.collection.count()
