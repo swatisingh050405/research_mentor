@@ -9,7 +9,7 @@ const api = axios.create({
   },
 });
 
-
+// Request Interceptor: Attach Supabase Access Token (If available)
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -36,25 +36,25 @@ api.interceptors.response.use(
       error.response &&
       (error.response.status === 401 || error.response.status === 403)
     ) {
-      const publicPaths = ["/", "/public"];
-      const isPublicPage = publicPaths.includes(window.location.pathname);
-      const isChatPrepare = error.config.url.endsWith("/chat/prepare");
+      const pathname = window.location.pathname;
 
-      // Guest chat prepare ke liye suppressed mode
-      if (isPublicPage && isChatPrepare) {
-        console.warn("Suppressing automatic redirect for guest chat prepare.");
-        return Promise.reject(error); // component handle karega alert ke saath
-      }
+      // 💡 Public routes detection (Home, Public, and any /paper/:id page)
+      const isPublicRoute =
+        pathname === "/" ||
+        pathname === "/public" ||
+        pathname.startsWith("/paper/");
 
-     
-      if (isPublicPage) {
+      const isChatPrepare = error.config?.url?.includes("/chat/prepare");
+
+      // 🚨 Suppress auto-logout on public routes so UI alerts/cards can handle it cleanly
+      if (isPublicRoute || isChatPrepare) {
         console.warn(
-          "Unauthorized operation on public page. Suppressing login redirect.",
+          "401 caught on public/paper page. Suppressing login redirect.",
         );
         return Promise.reject(error);
       }
 
-      // Protected route (Workspace etc.) logic remains standard redirect
+      // Standard Logout Flow ONLY for strict protected routes (like /workspace, /profile)
       console.warn("Session expired on protected route. Logging out...");
       localStorage.removeItem("app_login_timestamp");
 
@@ -72,7 +72,6 @@ api.interceptors.response.use(
   },
 );
 
-// API methods remain exact same...
 export const startSearch = async (topic, description = "") => {
   try {
     const response = await api.post("/api/search", { topic, description });
@@ -82,5 +81,50 @@ export const startSearch = async (topic, description = "") => {
     throw error;
   }
 };
-// ... rest of api.js ...
+
+export const loadMoreResults = async (searchId, currentCount) => {
+  try {
+    const response = await api.get("/api/search/more", {
+      params: { search_id: searchId, current_count: currentCount },
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response && error.response.status === 410) {
+      return { results: [], has_more: false, expired: true };
+    }
+    console.error("API Error in loadMoreResults:", error);
+    throw error;
+  }
+};
+
+export const fetchPaperDetails = async (paperId) => {
+  try {
+    const response = await api.get(`/api/paper/${paperId}`);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in fetchPaperDetails:", error);
+    throw error;
+  }
+};
+
+export const prepareChatForPaper = async (paperId) => {
+  try {
+    const response = await api.post(`/api/paper/${paperId}/chat/prepare`);
+    return response.data;
+  } catch (error) {
+    console.error("API Error in prepareChatForPaper:", error);
+    throw error;
+  }
+};
+
+export const askPaperQuestion = async (paperId, question) => {
+  try {
+    const response = await api.post(`/api/paper/${paperId}/chat`, { question });
+    return response.data;
+  } catch (error) {
+    console.error("API Error in askPaperQuestion:", error);
+    throw error;
+  }
+};
+
 export default api;
