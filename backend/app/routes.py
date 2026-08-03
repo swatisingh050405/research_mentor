@@ -1,17 +1,18 @@
 import os
+from typing import Optional
 from fastapi import APIRouter, Query, HTTPException, Depends, status, Request
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import BaseModel, Field
 
 from backend.src.core.logger import logger
 from backend.src.core.limiter import limiter
-from backend.src.core.jwt_handler import get_current_user
+from backend.src.core.jwt_handler import get_current_user, oauth2_scheme
 
 # 1. Initialize API Router
 router = APIRouter(prefix="/api", tags=["Research Operations"])
 
 
-# Module-level Cached Clients (Prevents Repeated Environment Lookups & Re-creations)
+# Module-level Cached Clients
 
 _orchestrator = None
 _chat_orchestrator = None
@@ -55,7 +56,24 @@ def get_chat_orchestrator():
     return _chat_orchestrator
 
 
+# Helper for Optional Authentication (Allows Public Search)
 
+def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
+    """
+    Allows public guest users to search without throwing a 401 Unauthorized exception.
+    Returns user ID string if a valid token is present, else None.
+    """
+    if not token or token in ("null", "undefined"):
+        return None
+    try:
+        return get_current_user(token)
+    except Exception:
+        return None
+
+
+# Auth Routes
+
+@router.post("/login")
 @limiter.limit("10/minute")
 async def login(
     request: Request,
@@ -105,21 +123,23 @@ class SearchRequest(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000)
 
-# Search Routes
+# Search Routes (Public Allowed)
 
 @router.post("/search")
 @limiter.limit("10/minute")
 async def start_search(
     request: Request,
     payload: SearchRequest, 
-    current_user: str = Depends(get_current_user)
+    current_user: Optional[str] = Depends(get_optional_current_user)
 ):
     topic = payload.topic.strip()
     if not topic:
         raise HTTPException(status_code=400, detail="Topic cannot be blank or whitespace.")
 
     try:
-        logger.info(f"User '{current_user}' issued search request. Topic: '{topic}'")
+        user_log = current_user if current_user else "Guest User"
+        logger.info(f"User '{user_log}' issued search request. Topic: '{topic}'")
+        
         engine = get_orchestrator()
         result = engine.start_search(topic=topic, description=payload.description)
 
@@ -145,7 +165,7 @@ async def start_search(
 async def load_more_results(
     search_id: str = Query(..., description="search_id returned by POST /api/search"),
     current_count: int = Query(..., ge=0, description="How many results already shown"),
-    current_user: str = Depends(get_current_user)
+    current_user: Optional[str] = Depends(get_optional_current_user)
 ):
     try:
         engine = get_orchestrator()
@@ -172,7 +192,7 @@ async def load_more_results(
 @router.get("/paper/{paper_id}")
 async def get_paper_detail(
     paper_id: str, 
-    current_user: str = Depends(get_current_user)
+    current_user: Optional[str] = Depends(get_optional_current_user)
 ):
     try:
         engine = get_orchestrator()
@@ -189,7 +209,8 @@ async def get_paper_detail(
         logger.error(f"Paper detail API failed: {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve paper details.")
 
-# Chat Routes
+# Chat Routes (Strict Auth Required)
+
 @router.post("/paper/{paper_id}/chat/prepare")
 async def prepare_paper_chat(
     paper_id: str, 
