@@ -4,9 +4,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { prepareChatForPaper, askPaperQuestion } from "../services/api";
 
-export default function ChatPanel({ paperId, paperTitle }) {
+export default function ChatPanel({ paperId, paperTitle, user: propUser }) {
   const navigate = useNavigate();
-  const { user } = useAuth(); // Auth context se user state
+  const { user: authUser } = useAuth();
+
+  // 💡 Safe fallback: Use prop user if passed, else fallback to Context Auth User
+  const currentUser = propUser !== undefined ? propUser : authUser;
 
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
@@ -20,8 +23,8 @@ export default function ChatPanel({ paperId, paperTitle }) {
     let cancelled = false;
 
     async function prepare() {
-      // 🔒 GUEST CHECK: Agar user logged in NAHI hai, to API call mat chalao!
-      if (!user) {
+      // 🔒 GUEST GUARD: Agar user logged in NAHI hai, to API call HIT HI MAT KARO!
+      if (!currentUser) {
         setIsPreparing(false);
         return;
       }
@@ -34,7 +37,7 @@ export default function ChatPanel({ paperId, paperTitle }) {
         if (cancelled) return;
         setContextMode(data.context_mode);
       } catch (err) {
-        console.error(err);
+        console.error("Chat preparation error:", err);
         if (!cancelled) {
           setPrepareError(
             "Couldn't prepare this paper for chat. You can still try asking a question.",
@@ -50,7 +53,7 @@ export default function ChatPanel({ paperId, paperTitle }) {
     return () => {
       cancelled = true;
     };
-  }, [paperId, user]);
+  }, [paperId, currentUser]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -70,7 +73,7 @@ export default function ChatPanel({ paperId, paperTitle }) {
     e.preventDefault();
 
     // 🔒 GUEST GUARD: Action Attempt par Alert
-    if (!user) {
+    if (!currentUser) {
       promptLogin();
       return;
     }
@@ -113,7 +116,7 @@ export default function ChatPanel({ paperId, paperTitle }) {
         </h3>
 
         {/* Status Badge only if Logged In */}
-        {user && !isPreparing && contextMode && (
+        {currentUser && !isPreparing && contextMode && (
           <span
             className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
               contextMode === "full_text"
@@ -130,8 +133,8 @@ export default function ChatPanel({ paperId, paperTitle }) {
 
       {/* Body */}
       <div className="flex-1 flex flex-col px-7 md:px-9 py-5 overflow-hidden">
-        {/* 1. Guest Mode Lock Overlay (Clear CTA) */}
-        {!user ? (
+        {/* 1. Guest Mode Lock Screen (No API calls triggered) */}
+        {!currentUser ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-6 bg-purple-50/40 border border-purple-100/80 rounded-2xl my-2 space-y-3">
             <div className="w-12 h-12 bg-purple-100 text-[var(--color-brand-primary)] rounded-full flex items-center justify-center text-xl shadow-inner">
               🔒
