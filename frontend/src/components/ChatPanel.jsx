@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
+import { useNavigate } from "react-router-dom";
 import { prepareChatForPaper, askPaperQuestion } from "../services/api";
 
-export default function ChatPanel({ paperId, paperTitle }) {
+export default function ChatPanel({ paperId, paperTitle, user }) {
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [isPreparing, setIsPreparing] = useState(true);
@@ -15,6 +17,12 @@ export default function ChatPanel({ paperId, paperTitle }) {
     let cancelled = false;
 
     async function prepare() {
+      // 💡 UI ALERT FIX: Guest User Check
+      if (!user) {
+        setIsPreparing(false);
+        return;
+      }
+
       setIsPreparing(true);
       setPrepareError(null);
 
@@ -23,11 +31,16 @@ export default function ChatPanel({ paperId, paperTitle }) {
         if (cancelled) return;
         setContextMode(data.context_mode);
       } catch (err) {
-        console.error(err);
+        console.error("Chat preparation error:", err);
         if (!cancelled) {
-          setPrepareError(
-            "Couldn't prepare this paper for chat. You can still try asking a question.",
-          );
+          if (err.response && err.response.status === 401) {
+            // Suppressed by interceptor — fallback state
+            setPrepareError("Authentication required for AI Chat.");
+          } else {
+            setPrepareError(
+              "Couldn't prepare this paper for chat. You can still try asking a question.",
+            );
+          }
         }
       } finally {
         if (!cancelled) setIsPreparing(false);
@@ -39,7 +52,7 @@ export default function ChatPanel({ paperId, paperTitle }) {
     return () => {
       cancelled = true;
     };
-  }, [paperId]);
+  }, [paperId, user]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -47,6 +60,19 @@ export default function ChatPanel({ paperId, paperTitle }) {
 
   const handleSend = async (e) => {
     e.preventDefault();
+
+    // 💡 ALERT POPUP (Same like Bookmarks)
+    if (!user) {
+      if (
+        window.confirm(
+          "An active account is required to chat with papers using AI. Would you like to Sign In?",
+        )
+      ) {
+        navigate("/login");
+      }
+      return;
+    }
+
     const question = input.trim();
     if (!question || isSending) return;
 
@@ -63,14 +89,24 @@ export default function ChatPanel({ paperId, paperTitle }) {
       setContextMode(data.context_mode);
     } catch (err) {
       console.error(err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          text: "Sorry, something went wrong answering that. Please try again.",
-          isError: true,
-        },
-      ]);
+      if (err.response && err.response.status === 401) {
+        if (
+          window.confirm(
+            "Your session expired. Please Sign In to continue chatting.",
+          )
+        ) {
+          navigate("/login");
+        }
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: "Sorry, something went wrong answering that. Please try again.",
+            isError: true,
+          },
+        ]);
+      }
     } finally {
       setIsSending(false);
     }
@@ -109,8 +145,16 @@ export default function ChatPanel({ paperId, paperTitle }) {
         )}
 
         {prepareError && !isPreparing && (
-          <div className="bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold p-3 rounded-xl mb-4">
-            ⚠️ {prepareError}
+          <div className="bg-amber-50 border border-amber-100 text-amber-700 text-xs font-semibold p-3 rounded-xl mb-4 flex justify-between items-center">
+            <span>⚠️ {prepareError}</span>
+            {!user && (
+              <button
+                onClick={() => navigate("/login")}
+                className="underline font-bold text-amber-800 hover:text-amber-900 cursor-pointer text-xs"
+              >
+                Sign In
+              </button>
+            )}
           </div>
         )}
 
@@ -126,9 +170,16 @@ export default function ChatPanel({ paperId, paperTitle }) {
         {/* Messages */}
         <div className="flex-1 overflow-y-auto space-y-4 pr-2 mb-4">
           {messages.length === 0 && !isPreparing ? (
-            <p className="text-sm text-slate-400 font-medium py-6 text-center">
-              Ask a question about "{paperTitle}" to get started.
-            </p>
+            <div className="py-8 text-center space-y-3">
+              <p className="text-sm text-slate-400 font-medium">
+                Ask a question about "{paperTitle}" to get started.
+              </p>
+              {!user && (
+                <p className="text-xs text-purple-600 font-semibold bg-purple-50 inline-block px-3 py-1.5 rounded-lg border border-purple-100">
+                  🔒 Sign in is required to generate AI answers.
+                </p>
+              )}
+            </div>
           ) : (
             messages.map((msg, idx) => (
               <div
@@ -195,16 +246,29 @@ export default function ChatPanel({ paperId, paperTitle }) {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input */}
+        {/* Input Form */}
         <form onSubmit={handleSend} className="flex gap-2.5">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onClick={() => {
+              if (!user) {
+                if (
+                  window.confirm(
+                    "Sign in is required to ask questions to AI. Would you like to Sign In?",
+                  )
+                ) {
+                  navigate("/login");
+                }
+              }
+            }}
             placeholder={
               isPreparing
                 ? "Preparing paper..."
-                : "Ask a question about this paper..."
+                : !user
+                  ? "Click to sign in and ask a question..."
+                  : "Ask a question about this paper..."
             }
             disabled={isPreparing || isSending}
             className="flex-1 bg-purple-50/10 border border-purple-100/80 px-4 py-3 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[var(--color-brand-primary)] focus:ring-4 focus:ring-[var(--color-brand-primary)]/5 transition-all text-sm font-medium shadow-inner disabled:opacity-50"

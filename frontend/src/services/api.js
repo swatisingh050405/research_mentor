@@ -10,8 +10,6 @@ const api = axios.create({
 });
 
 
-// Request Interceptor: Attach Supabase Access Token (If available)
-
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -30,9 +28,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-
 // Response Interceptor: Smart Unauthorized Handler
-
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -40,29 +36,36 @@ api.interceptors.response.use(
       error.response &&
       (error.response.status === 401 || error.response.status === 403)
     ) {
-      // 🚨 CRITICAL FIX: Only redirect to /login if user is in a protected route (like /workspace, /profile, etc.)
-      // DO NOT redirect if they are on Home Public ("/" or "/public")
       const publicPaths = ["/", "/public"];
       const isPublicPage = publicPaths.includes(window.location.pathname);
+      const isChatPrepare = error.config.url.endsWith("/chat/prepare");
 
-      if (!isPublicPage) {
-        console.warn("Session expired on protected route. Logging out...");
+      // Guest chat prepare ke liye suppressed mode
+      if (isPublicPage && isChatPrepare) {
+        console.warn("Suppressing automatic redirect for guest chat prepare.");
+        return Promise.reject(error); // component handle karega alert ke saath
+      }
 
-        localStorage.removeItem("app_login_timestamp");
-
-        try {
-          await supabase.auth.signOut();
-        } catch (sErr) {
-          console.error("Signout error:", sErr);
-        }
-
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
-        }
-      } else {
+     
+      if (isPublicPage) {
         console.warn(
-          "Unauthorized search on public page. Suppressing login redirect.",
+          "Unauthorized operation on public page. Suppressing login redirect.",
         );
+        return Promise.reject(error);
+      }
+
+      // Protected route (Workspace etc.) logic remains standard redirect
+      console.warn("Session expired on protected route. Logging out...");
+      localStorage.removeItem("app_login_timestamp");
+
+      try {
+        await supabase.auth.signOut();
+      } catch (sErr) {
+        console.error("Signout error:", sErr);
+      }
+
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
       }
     }
     return Promise.reject(error);
@@ -79,50 +82,5 @@ export const startSearch = async (topic, description = "") => {
     throw error;
   }
 };
-
-export const loadMoreResults = async (searchId, currentCount) => {
-  try {
-    const response = await api.get("/api/search/more", {
-      params: { search_id: searchId, current_count: currentCount },
-    });
-    return response.data;
-  } catch (error) {
-    if (error.response && error.response.status === 410) {
-      return { results: [], has_more: false, expired: true };
-    }
-    console.error("API Error in loadMoreResults:", error);
-    throw error;
-  }
-};
-
-export const fetchPaperDetails = async (paperId) => {
-  try {
-    const response = await api.get(`/api/paper/${paperId}`);
-    return response.data;
-  } catch (error) {
-    console.error("API Error in fetchPaperDetails:", error);
-    throw error;
-  }
-};
-
-export const prepareChatForPaper = async (paperId) => {
-  try {
-    const response = await api.post(`/api/paper/${paperId}/chat/prepare`);
-    return response.data;
-  } catch (error) {
-    console.error("API Error in prepareChatForPaper:", error);
-    throw error;
-  }
-};
-
-export const askPaperQuestion = async (paperId, question) => {
-  try {
-    const response = await api.post(`/api/paper/${paperId}/chat`, { question });
-    return response.data;
-  } catch (error) {
-    console.error("API Error in askPaperQuestion:", error);
-    throw error;
-  }
-};
-
+// ... rest of api.js ...
 export default api;
