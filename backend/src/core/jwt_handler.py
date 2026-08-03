@@ -7,8 +7,8 @@ from fastapi.security import OAuth2PasswordBearer
 
 from backend.src.core.logger import logger
 
-# OAuth2 scheme used by protected endpoints
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/login", auto_error=False)
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 
@@ -35,7 +35,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
         str: Authenticated user's ID.
 
     Raises:
-        HTTPException(401): If the token is invalid or expired.
+        HTTPException(401): If the token is missing, invalid, or expired on protected routes.
     """
 
     credentials_exception = HTTPException(
@@ -44,8 +44,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> str:
         headers={"WWW-Authenticate": "Bearer"},
     )
 
-    if not token or token in ("null", "undefined"):
-        logger.warning("Authentication attempted without an access token.")
+    if not token or token in ("null", "undefined", "Bearer null"):
+        logger.warning("Authentication attempted without a valid access token.")
         raise credentials_exception
 
     try:
