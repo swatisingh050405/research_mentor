@@ -9,7 +9,7 @@ const api = axios.create({
   },
 });
 
-// Request Interceptor: Attach Supabase Access Token (If available)
+// Request Interceptor: Safely Attach Supabase Access Token
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -19,6 +19,8 @@ api.interceptors.request.use(
 
       if (session?.access_token) {
         config.headers.Authorization = `Bearer ${session.access_token}`;
+      } else {
+        delete config.headers.Authorization;
       }
     } catch (err) {
       console.error("Failed to retrieve Supabase session token:", err);
@@ -38,7 +40,7 @@ api.interceptors.response.use(
     ) {
       const pathname = window.location.pathname;
 
-      // 💡 Public routes detection (Home, Public, and any /paper/:id page)
+      // 💡 Public routes & guest actions detection
       const isPublicRoute =
         pathname === "/" ||
         pathname === "/public" ||
@@ -46,15 +48,14 @@ api.interceptors.response.use(
 
       const isChatPrepare = error.config?.url?.includes("/chat/prepare");
 
-      // 🚨 Suppress auto-logout on public routes so UI alerts/cards can handle it cleanly
+      // Suppress forced redirect on public pages/guest alerts
       if (isPublicRoute || isChatPrepare) {
         console.warn(
-          "401 caught on public/paper page. Suppressing login redirect.",
+          "401/403 caught on public or paper page. Suppressing login redirect.",
         );
         return Promise.reject(error);
       }
 
-      // Standard Logout Flow ONLY for strict protected routes (like /workspace, /profile)
       console.warn("Session expired on protected route. Logging out...");
       localStorage.removeItem("app_login_timestamp");
 

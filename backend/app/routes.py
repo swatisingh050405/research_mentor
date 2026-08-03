@@ -11,12 +11,11 @@ from backend.src.core.jwt_handler import get_current_user, oauth2_scheme
 # 1. Initialize API Router
 router = APIRouter(prefix="/api", tags=["Research Operations"])
 
-
 # Module-level Cached Clients
-
 _orchestrator = None
 _chat_orchestrator = None
 _supabase_client = None
+
 
 def get_supabase_client():
     global _supabase_client
@@ -57,13 +56,12 @@ def get_chat_orchestrator():
 
 
 # Helper for Optional Authentication (Allows Public Search)
-
 def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> Optional[str]:
     """
     Allows public guest users to search without throwing a 401 Unauthorized exception.
     Returns user ID string if a valid token is present, else None.
     """
-    if not token or token in ("null", "undefined"):
+    if not token or token in ("null", "undefined", "None", ""):
         return None
     try:
         return get_current_user(token)
@@ -72,7 +70,6 @@ def get_optional_current_user(token: Optional[str] = Depends(oauth2_scheme)) -> 
 
 
 # Auth Routes
-
 @router.post("/login")
 @limiter.limit("10/minute")
 async def login(
@@ -114,8 +111,8 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-# Request Schemas
 
+# Request Schemas
 class SearchRequest(BaseModel):
     topic: str = Field(..., min_length=2, max_length=300)
     description: str = Field(default="", max_length=1000)
@@ -123,8 +120,8 @@ class SearchRequest(BaseModel):
 class ChatRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000)
 
-# Search Routes (Public Allowed)
 
+# Search Routes
 @router.post("/search")
 @limiter.limit("10/minute")
 async def start_search(
@@ -198,7 +195,12 @@ async def get_paper_detail(
         engine = get_orchestrator()
         result = engine.get_paper_details(paper_id)
 
+        # 💡 FIX: Fallback if DB lookup miss (Live arXiv Query)
         if result is None:
+            logger.info(f"Paper '{paper_id}' missing in DB. Attempting live fetch...")
+            live_paper = engine.arxiv_client.get_paper_by_id(paper_id)
+            if live_paper:
+                return {"paper": live_paper, "recommendations": []}
             raise HTTPException(status_code=404, detail="Paper not found")
 
         return result
@@ -206,22 +208,30 @@ async def get_paper_detail(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Paper detail API failed: {e}")
+        logger.error(f"Paper detail API failed for '{paper_id}': {e}")
         raise HTTPException(status_code=500, detail="Failed to retrieve paper details.")
 
-# Chat Routes (Strict Auth Required)
 
+# Chat Routes (Strict Auth Required)
 @router.post("/paper/{paper_id}/chat/prepare")
 async def prepare_paper_chat(
     paper_id: str, 
     current_user: str = Depends(get_current_user)
 ):
     try:
+        logger.info(f"Preparing chat for paper_id '{paper_id}' by user '{current_user}'")
         chat_engine = get_chat_orchestrator()
         result = chat_engine.prepare_chat(paper_id)
 
-        if not result["paper_found"]:
-            raise HTTPException(status_code=404, detail="Paper not found")
+        # 💡 FIX: Fallback to build chat context from ArXiv if ChromaDB missed metadata
+        if not result.get("paper_found"):
+            engine = get_orchestrator()
+            live_paper = engine.arxiv_client.get_paper_by_id(paper_id)
+            if live_paper:
+                result = chat_engine.prepare_chat_from_data(live_paper)
+
+        if not result.get("paper_found"):
+            raise HTTPException(status_code=404, detail="Paper details not found to start chat.")
 
         return result
 
@@ -244,8 +254,8 @@ async def ask_paper_question(
         chat_engine = get_chat_orchestrator()
         result = chat_engine.ask(paper_id=paper_id, question=payload.question)
 
-        if not result["paper_found"]:
-            raise HTTPException(status_code=404, detail="Paper not found")
+        if not result.get("paper_found"):
+            raise HTTPException(status_code=404, detail="Paper not found in active session.")
 
         return result
 
