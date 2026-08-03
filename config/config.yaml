@@ -1,6 +1,6 @@
 app:
   name: "Research Mentor AI"
-  environment: "production"
+ 
 
 search:
   similarity_threshold: 0.72     # Minimum score match to consider a paper a "cache hit"
@@ -19,7 +19,10 @@ api:
     model_name: "gemini-2.5-flash"   # Used for query enhancement + paper analysis (text generation)
 
 embedding:
-  model_name: "gemini-embedding-001"  # Gemini embedding model
+  model_name: "gemini-embedding-001" 
+  batch_size: 16 
+  
+  # Gemini embedding model
 
 rag:
   pdf_fetch_timeout: 20
