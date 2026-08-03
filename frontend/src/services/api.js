@@ -1,21 +1,20 @@
 import axios from "axios";
-import { supabase } from "../lib/supabase"; // Updated relative path for src/services/
+import { supabase } from "../lib/supabase";
 
 // Base instance configuration
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL, // Matches your FastAPI Uvicorn port
+  baseURL: import.meta.env.VITE_API_URL,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-// ----------------------------------------------------------------------
-// Request Interceptor: Attach Supabase Access Token to Every Request
-// ----------------------------------------------------------------------
+
+// Request Interceptor: Attach Supabase Access Token (If available)
+
 api.interceptors.request.use(
   async (config) => {
     try {
-      // Dynamically fetch the current valid Supabase session
       const {
         data: { session },
       } = await supabase.auth.getSession();
@@ -31,9 +30,9 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// ----------------------------------------------------------------------
-// Response Interceptor: Handle Expired Sessions (401 / 403)
-// ----------------------------------------------------------------------
+
+// Response Interceptor: Smart Unauthorized Handler
+
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -41,31 +40,36 @@ api.interceptors.response.use(
       error.response &&
       (error.response.status === 401 || error.response.status === 403)
     ) {
-      console.warn("Session expired or unauthorized. Logging out...");
+      // 🚨 CRITICAL FIX: Only redirect to /login if user is in a protected route (like /workspace, /profile, etc.)
+      // DO NOT redirect if they are on Home Public ("/" or "/public")
+      const publicPaths = ["/", "/public"];
+      const isPublicPage = publicPaths.includes(window.location.pathname);
 
-      // Clear local login timestamp
-      localStorage.removeItem("app_login_timestamp");
+      if (!isPublicPage) {
+        console.warn("Session expired on protected route. Logging out...");
 
-      // Sign out from Supabase (clears stored keys safely)
-      await supabase.auth.signOut();
+        localStorage.removeItem("app_login_timestamp");
 
-      // Redirect user back to login page
-      if (window.location.pathname !== "/login") {
-        window.location.href = "/login";
+        try {
+          await supabase.auth.signOut();
+        } catch (sErr) {
+          console.error("Signout error:", sErr);
+        }
+
+        if (window.location.pathname !== "/login") {
+          window.location.href = "/login";
+        }
+      } else {
+        console.warn(
+          "Unauthorized search on public page. Suppressing login redirect.",
+        );
       }
     }
     return Promise.reject(error);
   },
 );
 
-/**
- * Starts a new search: builds the ranked result pool once on the backend
- * and returns the first page (up to 5 papers, summarized).
- *
- * @param {string} topic - Core subject to search for.
- * @param {string} description - Optional context/intent/constraints.
- * @returns {Promise<{search_id: string|null, results: Array, has_more: boolean, total_pool_size: number}>}
- */
+// API methods remain exact same...
 export const startSearch = async (topic, description = "") => {
   try {
     const response = await api.post("/api/search", { topic, description });
@@ -76,13 +80,6 @@ export const startSearch = async (topic, description = "") => {
   }
 };
 
-/**
- * Loads the next page of results for an existing search session.
- *
- * @param {string} searchId - search_id returned by startSearch().
- * @param {number} currentCount - How many results are already shown.
- * @returns {Promise<{results: Array, has_more: boolean, expired: boolean}>}
- */
 export const loadMoreResults = async (searchId, currentCount) => {
   try {
     const response = await api.get("/api/search/more", {
@@ -90,7 +87,6 @@ export const loadMoreResults = async (searchId, currentCount) => {
     });
     return response.data;
   } catch (error) {
-    // A 410 means the search pool session expired on backend
     if (error.response && error.response.status === 410) {
       return { results: [], has_more: false, expired: true };
     }
@@ -99,12 +95,6 @@ export const loadMoreResults = async (searchId, currentCount) => {
   }
 };
 
-/**
- * Fetches full details for a single paper, plus similar-paper recommendations.
- *
- * @param {string} paperId
- * @returns {Promise<{paper: object, recommendations: Array}>}
- */
 export const fetchPaperDetails = async (paperId) => {
   try {
     const response = await api.get(`/api/paper/${paperId}`);
@@ -115,13 +105,6 @@ export const fetchPaperDetails = async (paperId) => {
   }
 };
 
-/**
- * Triggers lazy PDF processing (fetch + chunk + embed) for a paper's chat.
- * Call this when the chat panel is opened, before the user asks anything.
- *
- * @param {string} paperId
- * @returns {Promise<{context_mode: 'full_text'|'abstract_only', paper_found: boolean}>}
- */
 export const prepareChatForPaper = async (paperId) => {
   try {
     const response = await api.post(`/api/paper/${paperId}/chat/prepare`);
@@ -132,13 +115,6 @@ export const prepareChatForPaper = async (paperId) => {
   }
 };
 
-/**
- * Asks a question about a specific paper (RAG chat).
- *
- * @param {string} paperId
- * @param {string} question
- * @returns {Promise<{answer: string, context_mode: string, used_gemini: boolean, paper_found: boolean}>}
- */
 export const askPaperQuestion = async (paperId, question) => {
   try {
     const response = await api.post(`/api/paper/${paperId}/chat`, { question });

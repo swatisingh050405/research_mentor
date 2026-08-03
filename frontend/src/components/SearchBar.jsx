@@ -36,6 +36,12 @@ export default function SearchBar({
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            onKeyDown={(e) => {
+              // Prevents Enter key inside description from accidentally submitting the form
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.stopPropagation();
+              }
+            }}
             placeholder="Describe your research context, goals, or any specific requirements for the papers you want to find"
             rows={3}
             className="w-full bg-purple-50/10 border border-purple-100/80 px-4 py-3.5 rounded-xl text-slate-900 placeholder:text-slate-400 focus:outline-none focus:bg-white focus:border-[var(--color-brand-primary)] focus:ring-4 focus:ring-[var(--color-brand-primary)]/5 transition-all text-sm font-medium resize-none leading-relaxed shadow-inner"

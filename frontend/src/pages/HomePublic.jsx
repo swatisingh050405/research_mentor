@@ -31,7 +31,7 @@ export default function HomePublic() {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const handlePublicSearch = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!topic.trim()) return;
 
     setIsLoading(true);
@@ -153,6 +153,7 @@ export default function HomePublic() {
             {user ? (
               <>
                 <button
+                  type="button"
                   onClick={() => navigate("/workspace")}
                   className="text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-xs shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
                 >
@@ -160,8 +161,9 @@ export default function HomePublic() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => navigate("/profile")}
-                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white font-bold text-xs sm:text-sm shrink-0"
+                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white font-bold text-xs sm:text-sm shrink-0 cursor-pointer"
                 >
                   {user.user_metadata?.full_name
                     ?.split(" ")
@@ -174,6 +176,7 @@ export default function HomePublic() {
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={() => navigate("/login")}
                   className="text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-xs shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
                 >
@@ -181,6 +184,7 @@ export default function HomePublic() {
                 </button>
 
                 <button
+                  type="button"
                   onClick={() => navigate("/signup")}
                   className="text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] hover:opacity-90 px-3 sm:px-5 py-2 sm:py-2.5 rounded-xl shadow-xs shadow-purple-600/20 transition-all transform hover:-translate-y-0.5 cursor-pointer"
                 >
@@ -261,6 +265,7 @@ export default function HomePublic() {
                 {hasMore && (
                   <div className="flex justify-center pt-4">
                     <button
+                      type="button"
                       onClick={handleLoadMore}
                       disabled={loadingMore}
                       className="inline-flex items-center gap-2 bg-white border border-purple-100 text-[var(--color-brand-primary)] font-bold text-xs sm:text-sm px-5 sm:px-6 py-2.5 sm:py-3 rounded-xl shadow-xs hover:border-[var(--color-brand-primary)]/40 hover:shadow-md hover:shadow-purple-600/10 hover:-translate-y-0.5 active:scale-95 transition-all duration-300 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
