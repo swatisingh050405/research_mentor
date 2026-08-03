@@ -8,6 +8,7 @@ const api = axios.create({
   },
 });
 
+// Request Interceptor: Direct token pickup
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -41,10 +42,7 @@ api.interceptors.response.use(
         pathname === "/public" ||
         pathname.startsWith("/paper/");
 
-      const isChatPrepare = error.config?.url?.includes("/chat/prepare");
-
-      // Silently catch 401 on paper/public pages to prevent console loops
-      if (isPublicRoute || isChatPrepare) {
+      if (isPublicRoute) {
         return Promise.reject(error);
       }
 
@@ -98,11 +96,9 @@ export const prepareChatForPaper = async (paperId) => {
     const response = await api.post(`/api/paper/${paperId}/chat/prepare`);
     return response.data;
   } catch (error) {
-    // Graceful fallback response on auth fail or paper miss
     return {
       paper_found: true,
       context_mode: "abstract_only",
-      error: error.response?.status === 401 ? "auth_required" : "fallback",
     };
   }
 };
@@ -114,7 +110,8 @@ export const askPaperQuestion = async (paperId, question) => {
   } catch (error) {
     return {
       paper_found: true,
-      answer: "Unable to reach AI server right now. Please try again shortly.",
+      answer:
+        "I couldn't process that request right now. Please verify your login status and try asking again.",
       context_mode: "abstract_only",
     };
   }

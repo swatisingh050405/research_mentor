@@ -36,6 +36,18 @@ export default function PaperDetail() {
 
   const effectivePaperId = paperId || paper?.paper_id || paper?.id;
 
+  // ─── Window Resize Listener to prevent state mismatch ───
+  useEffect(() => {
+    const handleResize = () => {
+      // Laptop / Large Screen switch hone par default activeTab ko sync rakhein
+      if (window.innerWidth >= 1024) {
+        setActiveTab("details");
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   // ─── Drag to Resize Handlers ───
   const startResizing = useCallback((e) => {
     e.preventDefault();
@@ -88,7 +100,6 @@ export default function PaperDetail() {
           "Backend paper fetch error - using client state if available:",
           err,
         );
-        // Fallback: If 404 from API but state has paper details, don't trigger notFound
         if (!cancelled && !location.state?.paper) {
           setNotFound(true);
         }
@@ -412,14 +423,13 @@ export default function PaperDetail() {
         {/* RIGHT COLUMN: AI Chat Panel Container */}
         <div
           style={{
-            width: window.innerWidth >= 1024 ? `${chatWidth}px` : "100%",
+            "--chat-w": `${chatWidth}px`,
           }}
-          className={`h-[550px] lg:h-full w-full shrink-0 flex flex-col transition-none ${
+          className={`h-[550px] lg:h-full w-full lg:w-[var(--chat-w)] shrink-0 flex flex-col transition-none ${
             activeTab === "chat" ? "block" : "hidden lg:flex"
           }`}
         >
           {chatStarted ? (
-            /* 💡 CRITICAL FIX: user={user} passed to ChatPanel */
             <ChatPanel
               paperId={effectivePaperId}
               paperTitle={paper.title}
@@ -435,7 +445,20 @@ export default function PaperDetail() {
                 Ask questions and get answers grounded in this paper's content.
               </p>
               <button
-                onClick={() => setChatStarted(true)}
+                type="button"
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    if (
+                      window.confirm(
+                        "Sign in is required to chat with research papers using AI. Would you like to Sign In now?",
+                      )
+                    ) {
+                      navigate("/login");
+                    }
+                    return;
+                  }
+                  setChatStarted(true);
+                }}
                 className="mt-1 bg-gradient-to-r from-[var(--color-brand-primary)] to-[var(--color-brand-accent)] text-white text-xs font-bold px-6 py-3 rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md shadow-purple-600/10 w-full cursor-pointer max-w-xs"
               >
                 Start Chat →
