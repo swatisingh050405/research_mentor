@@ -1,7 +1,6 @@
 import axios from "axios";
 import { supabase } from "../lib/supabase";
 
-// Base instance configuration
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
   headers: {
@@ -9,7 +8,6 @@ const api = axios.create({
   },
 });
 
-// Request Interceptor: Safely Attach Supabase Access Token
 api.interceptors.request.use(
   async (config) => {
     try {
@@ -23,14 +21,13 @@ api.interceptors.request.use(
         delete config.headers.Authorization;
       }
     } catch (err) {
-      console.error("Failed to retrieve Supabase session token:", err);
+      console.error("Token acquisition error:", err);
     }
     return config;
   },
   (error) => Promise.reject(error),
 );
 
-// Response Interceptor: Smart Unauthorized Handler
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -39,8 +36,6 @@ api.interceptors.response.use(
       (error.response.status === 401 || error.response.status === 403)
     ) {
       const pathname = window.location.pathname;
-
-      // 💡 Public routes & guest actions detection
       const isPublicRoute =
         pathname === "/" ||
         pathname === "/public" ||
@@ -48,22 +43,15 @@ api.interceptors.response.use(
 
       const isChatPrepare = error.config?.url?.includes("/chat/prepare");
 
-      // Suppress forced redirect on public pages/guest alerts
+      // Silently catch 401 on paper/public pages to prevent console loops
       if (isPublicRoute || isChatPrepare) {
-        console.warn(
-          "401/403 caught on public or paper page. Suppressing login redirect.",
-        );
         return Promise.reject(error);
       }
 
-      console.warn("Session expired on protected route. Logging out...");
       localStorage.removeItem("app_login_timestamp");
-
       try {
         await supabase.auth.signOut();
-      } catch (sErr) {
-        console.error("Signout error:", sErr);
-      }
+      } catch (sErr) {}
 
       if (window.location.pathname !== "/login") {
         window.location.href = "/login";
@@ -78,7 +66,6 @@ export const startSearch = async (topic, description = "") => {
     const response = await api.post("/api/search", { topic, description });
     return response.data;
   } catch (error) {
-    console.error("API Error in startSearch:", error);
     throw error;
   }
 };
@@ -90,10 +77,9 @@ export const loadMoreResults = async (searchId, currentCount) => {
     });
     return response.data;
   } catch (error) {
-    if (error.response && error.response.status === 410) {
+    if (error.response?.status === 410) {
       return { results: [], has_more: false, expired: true };
     }
-    console.error("API Error in loadMoreResults:", error);
     throw error;
   }
 };
@@ -103,7 +89,6 @@ export const fetchPaperDetails = async (paperId) => {
     const response = await api.get(`/api/paper/${paperId}`);
     return response.data;
   } catch (error) {
-    console.error("API Error in fetchPaperDetails:", error);
     throw error;
   }
 };
@@ -113,8 +98,12 @@ export const prepareChatForPaper = async (paperId) => {
     const response = await api.post(`/api/paper/${paperId}/chat/prepare`);
     return response.data;
   } catch (error) {
-    console.error("API Error in prepareChatForPaper:", error);
-    throw error;
+    // Graceful fallback response on auth fail or paper miss
+    return {
+      paper_found: true,
+      context_mode: "abstract_only",
+      error: error.response?.status === 401 ? "auth_required" : "fallback",
+    };
   }
 };
 
@@ -123,8 +112,11 @@ export const askPaperQuestion = async (paperId, question) => {
     const response = await api.post(`/api/paper/${paperId}/chat`, { question });
     return response.data;
   } catch (error) {
-    console.error("API Error in askPaperQuestion:", error);
-    throw error;
+    return {
+      paper_found: true,
+      answer: "Unable to reach AI server right now. Please try again shortly.",
+      context_mode: "abstract_only",
+    };
   }
 };
 
