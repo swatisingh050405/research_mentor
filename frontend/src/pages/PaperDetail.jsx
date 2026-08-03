@@ -34,7 +34,7 @@ export default function PaperDetail() {
   const [chatWidth, setChatWidth] = useState(450);
   const isDraggingRef = useRef(false);
 
-  const effectivePaperId = paperId || paper?.paper_id;
+  const effectivePaperId = paperId || paper?.paper_id || paper?.id;
 
   // ─── Drag to Resize Handlers ───
   const startResizing = useCallback((e) => {
@@ -79,16 +79,17 @@ export default function PaperDetail() {
 
         if (cancelled) return;
 
-        if (!data?.paper) {
-          setNotFound(true);
-          return;
+        if (data?.paper) {
+          setPaper(data.paper);
+          setRecommendations(data.recommendations || []);
         }
-
-        setPaper(data.paper);
-        setRecommendations(data.recommendations || []);
       } catch (err) {
-        console.error(err);
-        if (!cancelled && !paper) {
+        console.warn(
+          "Backend paper fetch error - using client state if available:",
+          err,
+        );
+        // Fallback: If 404 from API but state has paper details, don't trigger notFound
+        if (!cancelled && !location.state?.paper) {
           setNotFound(true);
         }
       } finally {
@@ -104,7 +105,7 @@ export default function PaperDetail() {
     return () => {
       cancelled = true;
     };
-  }, [effectivePaperId]);
+  }, [effectivePaperId, location.state]);
 
   const checkBookmarkStatus = useCallback(async () => {
     if (!user?.id || !effectivePaperId) return;
@@ -418,7 +419,12 @@ export default function PaperDetail() {
           }`}
         >
           {chatStarted ? (
-            <ChatPanel paperId={effectivePaperId} paperTitle={paper.title} />
+            /* 💡 CRITICAL FIX: user={user} passed to ChatPanel */
+            <ChatPanel
+              paperId={effectivePaperId}
+              paperTitle={paper.title}
+              user={user}
+            />
           ) : (
             <div className="bg-white border border-purple-100 rounded-[1.8rem] sm:rounded-[2rem] p-6 sm:p-7 shadow-sm flex flex-col items-center text-center gap-3 h-full justify-center">
               <div className="text-2xl">💬</div>
